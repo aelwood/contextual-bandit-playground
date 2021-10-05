@@ -92,7 +92,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         else:
             return False
 
-    def get_best_reward_action(context):
+    def get_best_reward_action(self, context):
         mask_context = (self.context_vectors == context).all(1)
         assert sum(mask_context) == 1
 
@@ -105,7 +105,6 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
             time, context_reward_parameters["mu"]
         )
         optimal_r = norm(loc=updated_mu, scale=context_reward_parameters["sigma"]).rvs()
-        optimal_a
         return optimal_r, optimal_r  # Not sure about this
 
 
@@ -114,9 +113,16 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import numpy as np
 
-    fig, ax = plt.subplots(1, 1)
-    r = norm.rvs(size=1000)
+    environment = SyntheticEnvironment(
+        number_of_different_context=1,
+        number_of_observations=10_000,
+        # time_perturbation_function=lambda time, mu: mu + (time // 100) * 5,
+        time_perturbation_function=lambda time, mu: mu + np.cos(time/500),
+    )
+    bests_rewards = []
+    for i, c in enumerate(environment.generate_contexts()):
+        best_reward = environment.get_best_reward_action(c)
+        bests_rewards.append(best_reward)
 
-    ax.hist(r, density=True, histtype="stepfilled", alpha=0.2)
-    ax.legend(loc="best", frameon=False)
+    plt.plot(np.arange(len(bests_rewards)),bests_rewards)
     plt.show()

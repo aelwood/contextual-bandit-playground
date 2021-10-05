@@ -4,12 +4,13 @@ if __name__ == "__main__":
     environment = SyntheticEnvironment(
         number_of_different_context=2,
         number_of_observations=200,
-        time_perturbation_function=lambda time, mu: mu + (time % 100) * 5,
+        # time_perturbation_function=lambda time, mu: mu + (time // 100) * 5,
+        time_perturbation_function=lambda time, mu: mu + np.cos(time/500),
     )
 
     policy = UcbPolicy()
     warmup_policy = RandomPolicy()
-    evaluator = Evaluator()  # Can have MLflow integrated into it
+    # evaluator = Evaluator()  # Can have MLflow integrated into it
 
     warmup_length = 100
 
