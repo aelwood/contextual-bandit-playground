@@ -5,7 +5,6 @@ import numpy as np
 import typing
 
 from abc import ABC
-
 from sklearn.datasets import make_blobs
 from scipy.stats import norm
 
@@ -88,7 +87,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         updated_mu = self.time_perturbation_function(
             time, context_reward_parameters["mu"]
         )
-        reward = action * norm.pdf(
+        reward = norm.pdf(
             action, loc=updated_mu, scale=context_reward_parameters["sigma"]
         )
 
@@ -107,24 +106,18 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
             time, context_reward_parameters["mu"]
         )
 
-        x = np.linspace(
-            updated_mu - context_reward_parameters["sigma"],
-            updated_mu + context_reward_parameters["sigma"],
-            100,
+        optimal_a = updated_mu
+
+        optimal_r = norm.pdf(
+            optimal_a, loc=updated_mu, scale=context_reward_parameters["sigma"]
         )
-        rewards = x * norm.pdf(
-            x, loc=updated_mu, scale=context_reward_parameters["sigma"]
-        )
-        optimal_a = x[np.argmax(rewards)]
-        optimal_r = np.max(rewards)
 
         return optimal_r, optimal_a
 
 
 if __name__ == "__main__":
-    from scipy.stats import norm
     import matplotlib.pyplot as plt
-    import numpy as np
+
 
     environment = SyntheticEnvironment(
         number_of_different_context=3,
@@ -140,5 +133,7 @@ if __name__ == "__main__":
         bests_rewards.append(best_reward)
         bests_context.append(best_context)
 
-    plt.plot(np.arange(len(bests_rewards)), bests_rewards)
+    plt.plot(np.arange(len(bests_rewards)), bests_rewards, label="reward")
+    plt.plot(np.arange(len(bests_context)), bests_context, label="context")
+    plt.legend()
     plt.show()
