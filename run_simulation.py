@@ -11,6 +11,7 @@ if __name__ == "__main__":
     policy = UcbPolicy()
     warmup_policy = RandomPolicy()
     # evaluator = Evaluator()  # Can have MLflow integrated into it
+    # Linear contextual bandit
 
     warmup_length = 100
 

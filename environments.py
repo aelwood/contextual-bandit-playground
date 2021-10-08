@@ -33,7 +33,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         number_of_different_context: int,
         number_of_observations: int,
         time_perturbation_function,
-        fixed_variance=0.1,
+        fixed_variances=0.1,
     ):
         """
         It creates number_of_different_context context each of which is bind to a normal distribution.
@@ -45,7 +45,6 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         """
         self.number_of_different_context = number_of_different_context
         self.number_of_observations = number_of_observations
-        self.fixed_variance = fixed_variance
         self.time_perturbation_function = time_perturbation_function
 
         # Generate the contexts
@@ -59,9 +58,17 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         self.context_vectors = context_vectors
         self.context_ids = context_ids
 
+        if type(fixed_variances) == float:
+            fixed_variances = [fixed_variances] * number_of_different_context
+        else:
+            assert len(fixed_variances) == number_of_different_context, (
+                "The number of given variances should be equal "
+                "to the number of different context "
+            )
+
         # Generate reward functions
         self.context_reward_parameters = {
-            context_id: {"mu": context_id + 1, "sigma": fixed_variance}
+            context_id: {"mu": context_id + 1, "sigma": fixed_variances[context_id]}
             for context_id in range(number_of_different_context)
         }
 
@@ -69,9 +76,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         for context_vector in self.context_vectors:
             yield context_vector
 
-    def get_reward(self, action, context) -> bool:
-        # Return true if the reward is positive, false otherwise
-
+    def get_reward(self, action, context) -> float:
         mask_context = (self.context_vectors == context).all(1)
         assert sum(mask_context) == 1
 
@@ -83,14 +88,11 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         updated_mu = self.time_perturbation_function(
             time, context_reward_parameters["mu"]
         )
-        success_prob = norm.cdf(
+        reward = action * norm.pdf(
             action, loc=updated_mu, scale=context_reward_parameters["sigma"]
         )
 
-        if np.random.rand() < success_prob:
-            return True
-        else:
-            return False
+        return reward
 
     def get_best_reward_action(self, context):
         mask_context = (self.context_vectors == context).all(1)
@@ -104,8 +106,19 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         updated_mu = self.time_perturbation_function(
             time, context_reward_parameters["mu"]
         )
-        optimal_r = norm(loc=updated_mu, scale=context_reward_parameters["sigma"]).rvs()
-        return optimal_r, optimal_r  # Not sure about this
+
+        x = np.linspace(
+            updated_mu - context_reward_parameters["sigma"],
+            updated_mu + context_reward_parameters["sigma"],
+            100,
+        )
+        rewards = x * norm.pdf(
+            x, loc=updated_mu, scale=context_reward_parameters["sigma"]
+        )
+        optimal_a = x[np.argmax(rewards)]
+        optimal_r = np.max(rewards)
+
+        return optimal_r, optimal_a
 
 
 if __name__ == "__main__":
@@ -114,15 +127,18 @@ if __name__ == "__main__":
     import numpy as np
 
     environment = SyntheticEnvironment(
-        number_of_different_context=1,
-        number_of_observations=10_000,
+        number_of_different_context=3,
+        number_of_observations=1_000,
         # time_perturbation_function=lambda time, mu: mu + (time // 100) * 5,
-        time_perturbation_function=lambda time, mu: mu + np.cos(time/500),
+        time_perturbation_function=lambda time, mu: mu + np.cos(time / 500),
     )
     bests_rewards = []
-    for i, c in enumerate(environment.generate_contexts()):
-        best_reward = environment.get_best_reward_action(c)
-        bests_rewards.append(best_reward)
+    bests_context = []
 
-    plt.plot(np.arange(len(bests_rewards)),bests_rewards)
+    for i, c in enumerate(environment.generate_contexts()):
+        best_reward, best_context = environment.get_best_reward_action(c)
+        bests_rewards.append(best_reward)
+        bests_context.append(best_context)
+
+    plt.plot(np.arange(len(bests_rewards)), bests_rewards)
     plt.show()
