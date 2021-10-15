@@ -32,12 +32,12 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         number_of_different_context: int,
         number_of_observations: int,
         time_perturbation_function,
-        fixed_variances=0.1,
+        fixed_variances=0.6,
     ):
         """
         It creates number_of_different_context context each of which is bind to a normal distribution.
-        Every normal distribution have a  fixed_variance (default = 0.1)
-        Every normal distribution start with a mu in the range 1 to number_of_different_context
+        Every normal distribution have a  fixed_variance (default = 0.6)
+        Every normal distribution start with a mu in the range 1 to number_of_different_context*4 with an offset of 4
         Every normal distribution is different
         time_perturbation_function is a function of (time,mu) which modify the mu according to the time t
 
@@ -67,7 +67,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
 
         # Generate reward functions
         self.context_reward_parameters = {
-            context_id: {"mu": context_id + 1, "sigma": fixed_variances[context_id]}
+            context_id: {"mu": context_id*4 + 1, "sigma": fixed_variances[context_id]}
             for context_id in range(number_of_different_context)
         }
 
@@ -91,8 +91,8 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
             action, loc=updated_mu, scale=context_reward_parameters["sigma"]
         )
         reward = np.round(reward, 4)
-        sthocastic_reward = np.random.rand() < reward
-        return reward#, sthocastic_reward
+        stochastic_reward = np.random.rand() < reward
+        return reward, stochastic_reward
 
     def get_best_reward_action(self, context):
         mask_context = (self.context_vectors == context).all(1)
@@ -113,8 +113,9 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
             optimal_a, loc=updated_mu, scale=context_reward_parameters["sigma"]
         )
         optimal_r = np.round(optimal_r, 4)
-        discrete_reward = np.random.rand() < optimal_r
-        return optimal_r, optimal_a#, discrete_reward
+        stochastic_reward = np.random.rand() < optimal_r
+
+        return optimal_r, optimal_a, stochastic_reward
 
 
 if __name__ == "__main__":
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     bests_context = []
 
     for i, c in enumerate(environment.generate_contexts()):
-        best_reward, best_context = environment.get_best_reward_action(c)
+        best_reward, best_context, stochastic_reward = environment.get_best_reward_action(c)
         bests_rewards.append(best_reward)
         bests_context.append(best_context)
 

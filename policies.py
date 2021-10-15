@@ -71,22 +71,21 @@ class UcbPolicy(PolicyABC, ABC):
     def train(self):
         alphas = collections.defaultdict(int)
         betas = collections.defaultdict(int)
-
+        arm_ids = []
         for action, reward in zip(self.past_actions[self.sw:], self.past_rewards[self.sw:]):
             arm_id = self.values_arm[action]
-            is_success = reward > self.epsilon
+            arm_ids.append(arm_id)
+            is_success = reward
+            if is_success:
+                alphas[arm_id] += 1
+            else:
+                betas[arm_id] += 1
 
-            if arm_id is not None:
-                if is_success:
-                    alphas[arm_id] += 1
-                else:
-                    betas[arm_id] += 1
+        for arm_id in np.unique(arm_ids):
+            self.arms[arm_id] = scipy.stats.beta(a=alphas[arm_id]+1, b=betas[arm_id]+1)
 
-        for arm_id in betas.keys():
-            self.arms[arm_id] = scipy.stats.beta(a=alphas[arm_id], b=betas[arm_id])
-
-    def notify_event(self, context, action, reward):
-        self.past_rewards.append(reward)
+    def notify_event(self, context, action, stochastic_reward):
+        self.past_rewards.append(stochastic_reward)
         self.past_actions.append(action)
 
     def _get_total_pulls(self, arm_beta):
@@ -110,11 +109,11 @@ class UcbPolicy(PolicyABC, ABC):
 
             arm_value = self.arm_values[id]
 
-            if num_of_pulls_from_the_arm == 0:
+            if num_of_pulls_from_the_arm == 2:
                 return float(arm_value)
             upper_bound_value = arm_mean_reward + math.sqrt(
                 (2 * math.log(total_pulls)) / float(num_of_pulls_from_the_arm)
             )
-            samples[arm_value] = upper_bound_value * arm_value
+            samples[arm_value] = upper_bound_value
         markup_of_max = max(samples, key=samples.get)
         return float(markup_of_max)
