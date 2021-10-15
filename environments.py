@@ -75,7 +75,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         for context_vector in self.context_vectors:
             yield context_vector
 
-    def get_reward(self, action, context) -> float:
+    def get_reward(self, action, context) -> (float, bool):
         mask_context = (self.context_vectors == context).all(1)
         assert sum(mask_context) == 1
 
@@ -90,8 +90,9 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         reward = norm.pdf(
             action, loc=updated_mu, scale=context_reward_parameters["sigma"]
         )
-
-        return reward
+        reward = np.round(reward, 4)
+        sthocastic_reward = np.random.rand() < reward
+        return reward#, sthocastic_reward
 
     def get_best_reward_action(self, context):
         mask_context = (self.context_vectors == context).all(1)
@@ -111,13 +112,13 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         optimal_r = norm.pdf(
             optimal_a, loc=updated_mu, scale=context_reward_parameters["sigma"]
         )
-
-        return optimal_r, optimal_a
+        optimal_r = np.round(optimal_r, 4)
+        discrete_reward = np.random.rand() < optimal_r
+        return optimal_r, optimal_a#, discrete_reward
 
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-
 
     environment = SyntheticEnvironment(
         number_of_different_context=3,
