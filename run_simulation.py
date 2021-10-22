@@ -2,7 +2,7 @@ import numpy as np
 
 from environments import SyntheticEnvironment
 from evaluator import Evaluator
-from policies import RandomPolicy, UcbPolicy, LinUcbPolicy, MaxEntropyModelFreeDiscrete, RidgeRegressionEstimator
+from policies import RandomPolicy, UcbPolicy, LinUcbPolicy, MaxEntropyModelFreeDiscrete, RidgeRegressionEstimator, ThompsonSamplingPolicy
 
 from scipy.stats import uniform
 
@@ -31,7 +31,7 @@ def simulate(environment, policy, evaluator, evaluation_frequency=100):
 def single_context_static_reward_random_policy():
     environment = SyntheticEnvironment(
         number_of_different_context=1,
-        number_of_observations=2_000,
+        number_of_observations=200,
         time_perturbation_function=lambda time, mu: mu,
     )
 
@@ -51,13 +51,46 @@ def single_context_static_reward_ucb_policy():
 
     simulate(environment, policy, evaluator, evaluation_frequency=100)
 
+def single_context_static_reward_ThompsonSampling_policy():
+    environment = SyntheticEnvironment(
+        number_of_different_context=1,
+        number_of_observations=2_000,
+        time_perturbation_function=lambda time, mu: mu,
+    )
+    policy = ThompsonSamplingPolicy({k: v for k, v in enumerate(np.arange(1, 6, 2))})
+    evaluator = Evaluator()
+
+    simulate(environment, policy, evaluator, evaluation_frequency=100)
+
 def single_context_dynamic_reward_ucb_policy():
+    environment = SyntheticEnvironment(
+        number_of_different_context=1,
+        number_of_observations=2_000,
+        time_perturbation_function=lambda time, mu: mu + np.cos(time / 1_000) + 0.5,
+    )
+    policy = UcbPolicy({k: v for k, v in enumerate(np.arange(0., 3, 0.5))})
+    evaluator = Evaluator()
+
+    simulate(environment, policy, evaluator, evaluation_frequency=100)
+
+def single_context_dynamic_reward_ThompsonSampling_policy():
     environment = SyntheticEnvironment(
         number_of_different_context=1,
         number_of_observations=2_000,
         time_perturbation_function=lambda time, mu: mu + np.cos(time / 500) + 0.5,
     )
-    policy = UcbPolicy({k: v for k, v in enumerate(np.arange(0., 3, 0.5))})
+    policy = ThompsonSamplingPolicy({k: v for k, v in  enumerate(np.arange(0., 3, 0.5))})
+    evaluator = Evaluator()
+
+    simulate(environment, policy, evaluator, evaluation_frequency=100)
+
+def single_context_dynamic_reward_ThompsonSampling_SW_policy():
+    environment = SyntheticEnvironment(
+        number_of_different_context=1,
+        number_of_observations=2_000,
+        time_perturbation_function=lambda time, mu: mu + np.cos(time / 500) + 0.5,
+    )
+    policy = ThompsonSamplingPolicy({k: v for k, v in  enumerate(np.arange(0., 3, 0.5))},sw=-200)
     evaluator = Evaluator()
 
     simulate(environment, policy, evaluator, evaluation_frequency=100)
@@ -68,7 +101,7 @@ def single_context_dynamic_reward_ucb_sw_policy():
         number_of_observations=2_000,
         time_perturbation_function=lambda time, mu: mu + np.cos(time / 500) + 0.5,
     )
-    policy = UcbPolicy({k: v for k, v in enumerate(np.arange(0., 3, 0.5))},sw=-500)
+    policy = UcbPolicy({k: v for k, v in enumerate(np.arange(0., 3, 0.5))},sw=-200)
     evaluator = Evaluator()
 
     simulate(environment, policy, evaluator, evaluation_frequency=100)
@@ -107,7 +140,6 @@ def single_context_static_reward_LinUcbPolicy_policy():
 
     simulate(environment, policy, evaluator, evaluation_frequency=100)
 
-
 def double_context_static_reward_LinUcbPolicy_policy():
     environment = SyntheticEnvironment(
         number_of_different_context=2,
@@ -120,18 +152,30 @@ def double_context_static_reward_LinUcbPolicy_policy():
 
     simulate(environment, policy, evaluator, evaluation_frequency=100)
 
+def double_context_dynamic_reward_LinUcbPolicy_policy():
+    environment = SyntheticEnvironment(
+        number_of_different_context=2,
+        number_of_observations=2_000,
+        time_perturbation_function=lambda time, mu: mu + np.cos(time / 500) + 0.5,
+        n_context_features=2,
+    )
+    policy = LinUcbPolicy({k: v for k, v in enumerate(np.arange(1, 7, 0.5))}, 2, 0.01)
+    evaluator = Evaluator()
+
+    simulate(environment, policy, evaluator, evaluation_frequency=100)
+
 
 if __name__ == "__main__":
-    run_with_function = False
+    run_with_function = True
 
     if run_with_function:
         # single_context_static_reward_random_policy()
         # single_context_static_reward_ucb_policy()
         # single_context_dynamic_reward_ucb_policy()
-        # single_context_dynamic_reward_ucb_sw_policy() # ??? why
+        single_context_dynamic_reward_ucb_sw_policy() # ??? why
         # duouble_context_static_reward_ucb_policy()
         # duble_context_dynamic_reward_ucb_sw_policy()
-        single_context_static_reward_LinUcbPolicy_policy()
+        # single_context_static_reward_LinUcbPolicy_policy()
         # double_context_static_reward_LinUcbPolicy_policy()
     else:
         # environment = SyntheticEnvironment(

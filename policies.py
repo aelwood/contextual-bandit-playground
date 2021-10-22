@@ -44,17 +44,7 @@ class RandomPolicy(PolicyABC):
         return self.distribution.rvs()
 
 
-class UcbPolicy(PolicyABC):
-    """
-    This is the implementation of the UCB1 policy, found on this website:
-    https://medium.com/analytics-vidhya/multi-armed-bandit-analysis-of-upper-confidence-bound-algorithm-4b84be516047
-
-    For this solution, context is not taken into account
-    arm_values = dict arm id(int) -> arm value (float)
-    epsilon = scalar from which consider the reward a positive reward
-    sw = sliding windows parameters: number of samples to consider during the training phase
-    """
-
+class MABPolicyABC(PolicyABC):
     def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
         self.arm_values = arm_values
         self.values_arm = {v: k for k, v in arm_values.items()}
@@ -92,6 +82,18 @@ class UcbPolicy(PolicyABC):
     def _get_total_pulls(self, arm_beta):
         return arm_beta.kwds["a"] + arm_beta.kwds["b"]
 
+
+class UcbPolicy(MABPolicyABC):
+    """
+    This is the implementation of the UCB1 policy, found on this website:
+    https://medium.com/analytics-vidhya/multi-armed-bandit-analysis-of-upper-confidence-bound-algorithm-4b84be516047
+
+    For this solution, context is not taken into account
+    arm_values = dict arm id(int) -> arm value (float)
+    epsilon = scalar from which consider the reward a positive reward
+    sw = sliding windows parameters: number of samples to consider during the training phase
+    """
+
     def get_action(self, context):
         """
         math.sqrt((2 * math.log(total_counts)) / float(self.counts[arm]))
@@ -104,11 +106,11 @@ class UcbPolicy(PolicyABC):
         )
 
         samples = {}
-        for id, arm_beta in self.arms.items():
+        for id_, arm_beta in self.arms.items():
             num_of_pulls_from_the_arm = self._get_total_pulls(arm_beta)
             arm_mean_reward = arm_beta.mean()
 
-            arm_value = self.arm_values[id]
+            arm_value = self.arm_values[id_]
 
             if num_of_pulls_from_the_arm == 2:
                 return float(arm_value)
@@ -119,6 +121,15 @@ class UcbPolicy(PolicyABC):
         markup_of_max = max(samples, key=samples.get)
         return float(markup_of_max)
 
+
+class ThompsonSamplingPolicy(MABPolicyABC):
+    def get_action(self, context):
+        samples = {}
+        for id_, arm_beta in self.arms.items():
+            arm_value = self.arm_values[id_]
+            samples[arm_value] = arm_beta.rvs()
+        markup_of_max = max(samples, key=samples.get)
+        return float(markup_of_max)
 
 '''
 Code for linear UCB adapted from:
