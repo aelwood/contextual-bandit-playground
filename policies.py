@@ -7,7 +7,6 @@ import numpy as np
 import typing
 import scipy
 
-from abc import ABC
 from scipy.stats import norm
 
 if typing.TYPE_CHECKING:
@@ -28,7 +27,7 @@ class PolicyABC(metaclass=abc.ABCMeta):
         pass
 
 
-class RandomPolicy(PolicyABC, ABC):
+class RandomPolicy(PolicyABC):
     def __init__(self, distribution):
         assert type(distribution) == scipy.stats._distn_infrastructure.rv_frozen
         self.distribution = distribution
@@ -43,7 +42,7 @@ class RandomPolicy(PolicyABC, ABC):
         return self.distribution.rvs()
 
 
-class UcbPolicy(PolicyABC, ABC):
+class UcbPolicy(PolicyABC):
     """
     This is the implementation of the UCB1 policy, found on this website:
     https://medium.com/analytics-vidhya/multi-armed-bandit-analysis-of-upper-confidence-bound-algorithm-4b84be516047
@@ -125,7 +124,7 @@ https://github.com/kfoofw/bandit_simulations/blob/master/python/contextual_bandi
 '''
 
 
-class LinUcbDisjointArm(ABC):
+class LinUcbDisjointArm:
     def __init__(self, arm_index, d, alpha):
         # Track arm index
         self.arm_index = arm_index
@@ -173,7 +172,7 @@ class LinUcbDisjointArm(ABC):
         self.b += reward * x
 
 
-class LinUcbPolicy(PolicyABC, ABC):
+class LinUcbPolicy(PolicyABC):
     def __init__(self, arm_values: Dict[int, float], n_contex_features, alpha, sw=0):
         self.arm_values = arm_values
         self.values_arm = {v: k for k, v in arm_values.items()}
@@ -234,3 +233,64 @@ class LinUcbPolicy(PolicyABC, ABC):
         self.past_contexts.append(context)
         self.past_rewards.append(stochastic_reward)
         self.past_actions.append(action)
+
+
+class RewardEstimatorABC(metaclass=abc.ABCMeta):
+    """This is a class that predicts a reward given a context"""
+    @abc.abstractmethod
+    def train(self, past_contexts: Sequence[np.ndarray], past_rewards: Sequence[float], past_actions: Sequence[float]):
+        pass
+
+    @abc.abstractmethod
+    def predict_reward(self, action, context: np.ndarray) -> float:
+        pass
+
+
+class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
+    def __init__(self, reward_estimator: RewardEstimatorABC, alpha_entropy: float):
+        self.alpha_entropy = alpha_entropy
+        self.reward_estimator = reward_estimator
+
+        self.past_contexts = []
+        self.past_rewards = []
+        self.past_actions = []
+
+    def train(self):
+        self.reward_estimator.train(self.past_contexts, self.past_rewards, self.past_actions)
+
+    def notify_event(self, context: np.ndarray, action: float, reward: float):
+        self.past_contexts.append(context)
+        self.past_rewards.append(reward)
+        self.past_actions.append(action)
+
+    @abc.abstractmethod
+    def get_action(self, context) -> float:
+        pass
+
+
+class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
+    """This is equivalent to the method described in  Contextual bandit Shannon Entropy exploration:
+    http://ras.papercept.net/images/temp/IROS/files/1465.pdf"""
+
+    def __init__(self, *, possible_actions: Sequence[float], **kwargs):
+        self.possible_actions = possible_actions
+        super(MaxEntropyModelFreeDiscrete, self).__init__(**kwargs)
+
+    def get_action(self, context):
+
+        probabilities = []
+        for a in self.possible_actions:
+            r = self.reward_estimator.predict_reward(a, context)
+            unnormed_p = np.exp(r / self.alpha_entropy)
+            probabilities.append(unnormed_p)
+
+        normalisation_factor = np.sum(probabilities)
+        probabilities = np.array(probabilities) / normalisation_factor
+        return np.random.choice(self.possible_actions, p=probabilities)
+
+
+class MaxEntropyModelFreeContinuous(MaxEntropyModelFreeABC):
+
+    def get_action(self, context):
+        # Here we need to implement sampling from an MCMC type thing
+        raise NotImplementedError
