@@ -30,28 +30,38 @@ class Evaluator:
         return f"Average oracle reward {np.mean(self.oracle['rewards']):2.4f} vs policy {np.mean(self.policy['rewards']):2.4f}"
 
     def plot(self):
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16,7))
+
+        plt.figure(figsize=(16,9))
+
+
         x = np.arange(len(self.policy["actions"]))
+
+
+        ax1 = plt.subplot(211)
 
         ax1.set_title("Played actions")
         ax1.plot(x, self.policy["actions"], label="policy",linestyle="",marker="^")
         ax1.plot(x, self.oracle["actions"], label="oracle",linestyle="",marker="x")
-        ax1.legend()
 
-        ax2.set_title("Gained rewards")
-        ax2.plot(x, self.policy["stochastic_reward"], label="policy",linestyle="",marker="^")
-        ax2.plot(x, self.oracle["stochastic_reward"], label="oracle",linestyle="",marker="x")
 
+        ax2 = plt.subplot(223)
+        ax2.set_title("Cumulative Rewards")
+        ax2.plot(x, np.cumsum(self.policy["rewards"]), label="policy(expected)", alpha=0.6)
+        ax2.plot(x, np.cumsum(self.oracle["rewards"]), label="oracle(expected)", alpha=0.6)
+        ax2.plot(x, np.cumsum(self.policy["stochastic_reward"]), label="policy(stochastic)", alpha=0.6)
+        ax2.plot(x, np.cumsum(self.oracle["stochastic_reward"]), label="oracle(stochastic)", alpha=0.6)
         ax2.legend()
-        plt.show()
-
-        plt.plot(x, np.cumsum(self.policy["stochastic_reward"]), label="policy")
-        plt.plot(x, np.cumsum(self.oracle["stochastic_reward"]), label="oracle")
-        plt.title("cumulative reward")
-        plt.legend()
-        plt.show()
 
 
-        plt.plot(x, np.cumsum(self.oracle["stochastic_reward"])-np.cumsum(self.policy["stochastic_reward"]), label="policy")
-        plt.title("cumulative regret")
+        ax3 = plt.subplot(224)
+        ax3.set_title("Cumulative Regrets")
+        ax3.plot(x, np.cumsum(self.oracle["stochastic_reward"])-np.cumsum(self.policy["stochastic_reward"]), label="stochastic_Regrets", lw=4, alpha=0.8)
+        ax3.plot(x, np.cumsum(self.oracle["rewards"])-np.cumsum(self.policy["rewards"]), label="Expected_Regrets", lw=4, alpha=0.8)
+
+        ax3.legend()
+
+
+
+
+        ax1.legend()
         plt.show()
