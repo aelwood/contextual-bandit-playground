@@ -33,6 +33,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         number_of_observations: int,
         time_perturbation_function,
         fixed_variances=0.6,
+        n_context_features=3,
     ):
         """
         It creates number_of_different_context context each of which is bind to a normal distribution.
@@ -49,11 +50,16 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         # Generate the contexts
         context_vectors, context_ids = make_blobs(
             n_samples=number_of_observations,
-            n_features=3,
+            n_features=n_context_features,
             centers=number_of_different_context,
             cluster_std=0.4,
             shuffle=True,
         )
+
+        # Normalize vectors:
+        context_vectors -= context_vectors.mean(0)
+        context_vectors /= context_vectors.std(0)
+
         self.context_vectors = context_vectors
         self.context_ids = context_ids
 
