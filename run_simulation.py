@@ -2,7 +2,7 @@ import numpy as np
 
 from environments import SyntheticEnvironment
 from evaluator import Evaluator
-from policies import RandomPolicy, UcbPolicy, LinUcbPolicy
+from policies import RandomPolicy, UcbPolicy, LinUcbPolicy, MaxEntropyModelFreeDiscrete, RidgeRegressionEstimator
 
 from scipy.stats import uniform
 
@@ -120,14 +120,43 @@ def double_context_static_reward_LinUcbPolicy_policy():
 
     simulate(environment, policy, evaluator, evaluation_frequency=100)
 
+
 if __name__ == "__main__":
-    # single_context_static_reward_random_policy()
-    # single_context_static_reward_ucb_policy()
-    # single_context_dynamic_reward_ucb_policy()
-    # single_context_dynamic_reward_ucb_sw_policy() # ??? why
-    # duouble_context_static_reward_ucb_policy()
-    # duble_context_dynamic_reward_ucb_sw_policy()
-    single_context_static_reward_LinUcbPolicy_policy()
-    # double_context_static_reward_LinUcbPolicy_policy()
+    run_with_function = False
 
+    if run_with_function:
+        # single_context_static_reward_random_policy()
+        # single_context_static_reward_ucb_policy()
+        # single_context_dynamic_reward_ucb_policy()
+        # single_context_dynamic_reward_ucb_sw_policy() # ??? why
+        # duouble_context_static_reward_ucb_policy()
+        # duble_context_dynamic_reward_ucb_sw_policy()
+        single_context_static_reward_LinUcbPolicy_policy()
+        # double_context_static_reward_LinUcbPolicy_policy()
+    else:
+        # environment = SyntheticEnvironment(
+        #     number_of_different_context=2,
+        #     number_of_observations=2_000,
+        #     time_perturbation_function=lambda time, mu: mu,
+        #     n_context_features=2,
+        # )
 
+        environment = SyntheticEnvironment(
+            number_of_different_context=1,
+            number_of_observations=2_000,
+            time_perturbation_function=lambda time, mu: mu,
+            n_context_features=2,
+        )
+
+        reward_estimator = RidgeRegressionEstimator(alpha_l2=1.0)
+        pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=10))
+        policy = MaxEntropyModelFreeDiscrete(
+            possible_actions=np.arange(1, 7, 2),
+            alpha_entropy=1.0,
+            reward_estimator=reward_estimator,
+            pretrain_time=10,
+            pretrain_policy=pretrain_policy
+        )
+        evaluator = Evaluator()
+
+        simulate(environment, policy, evaluator, evaluation_frequency=100)

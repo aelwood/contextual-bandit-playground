@@ -7,6 +7,8 @@ import numpy as np
 import typing
 import scipy
 
+import sklearn.linear_model as sklm
+
 from scipy.stats import norm
 
 if typing.TYPE_CHECKING:
@@ -237,6 +239,7 @@ class LinUcbPolicy(PolicyABC):
 
 class RewardEstimatorABC(metaclass=abc.ABCMeta):
     """This is a class that predicts a reward given a context"""
+
     @abc.abstractmethod
     def train(self, past_contexts: Sequence[np.ndarray], past_rewards: Sequence[float], past_actions: Sequence[float]):
         pass
@@ -246,8 +249,31 @@ class RewardEstimatorABC(metaclass=abc.ABCMeta):
         pass
 
 
+class RidgeRegressionEstimator(RewardEstimatorABC):
+
+    def __init__(self, alpha_l2 = 1.0):
+        self.model: Optional[sklm.Ridge] = None
+        self.alpha_l2 = alpha_l2
+
+    def _prepare_x(self, contexts: Sequence[np.ndarray], actions: Sequence[float]):
+        # TODO implement robust normalisation of data here?
+        return np.concatenate([np.array(contexts), np.array(actions).reshape(-1,1)], axis=1)
+
+    def train(self, past_contexts: Sequence[np.ndarray], past_rewards: Sequence[float], past_actions: Sequence[float]):
+        X = self._prepare_x(past_contexts, past_actions)
+        y = np.array(past_rewards)
+        self.model = sklm.Ridge(alpha=self.alpha_l2)
+        self.model.fit(X,y)
+
+    def predict_reward(self, action, context: np.ndarray) -> float:
+        assert self.model is not None, "Model likely hasn't been trained before being used"
+        X = self._prepare_x([context], [action])
+        r = self.model.predict(X)
+        return r[0]
+
+
 class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
-    def __init__(self, reward_estimator: RewardEstimatorABC, alpha_entropy: float):
+    def __init__(self, reward_estimator: RewardEstimatorABC, alpha_entropy: float, pretrain_time: int, pretrain_policy: PolicyABC):
         self.alpha_entropy = alpha_entropy
         self.reward_estimator = reward_estimator
 
@@ -255,16 +281,33 @@ class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
         self.past_rewards = []
         self.past_actions = []
 
+        self.pretrain_time = pretrain_time
+        self.pretrain_policy = pretrain_policy
+        self.pretrain_counter = 0
+
     def train(self):
+        if self.pretrain_counter < self.pretrain_time:
+            self.pretrain_policy.train()
+
         self.reward_estimator.train(self.past_contexts, self.past_rewards, self.past_actions)
 
     def notify_event(self, context: np.ndarray, action: float, reward: float):
+        if self.pretrain_counter < self.pretrain_time:
+            self.pretrain_policy.notify_event(context, action, reward)
+
         self.past_contexts.append(context)
         self.past_rewards.append(reward)
         self.past_actions.append(action)
 
+    def get_action(self, context: np.ndarray) -> float:
+        if self.pretrain_counter < self.pretrain_time:
+            self.pretrain_counter += 1
+            return self.pretrain_policy.get_action(context)
+        else:
+            return self._get_action_after_pretrain(context)
+
     @abc.abstractmethod
-    def get_action(self, context) -> float:
+    def _get_action_after_pretrain(self, context: np.ndarray) -> float:
         pass
 
 
@@ -276,7 +319,7 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
         self.possible_actions = possible_actions
         super(MaxEntropyModelFreeDiscrete, self).__init__(**kwargs)
 
-    def get_action(self, context):
+    def _get_action_after_pretrain(self, context):
 
         probabilities = []
         for a in self.possible_actions:
