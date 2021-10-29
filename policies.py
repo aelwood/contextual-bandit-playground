@@ -8,6 +8,8 @@ import typing
 import scipy
 
 import sklearn.linear_model as sklm
+import tensorflow as tf
+import tensorflow_probability as tfp
 
 from scipy.stats import norm
 
@@ -131,13 +133,13 @@ class ThompsonSamplingPolicy(MABPolicyABC):
         markup_of_max = max(samples, key=samples.get)
         return float(markup_of_max)
 
-'''
-Code for linear UCB adapted from:
-https://github.com/kfoofw/bandit_simulations/blob/master/python/contextual_bandits/notebooks/LinUCB_disjoint.ipynb
-'''
-
 
 class LinUcbDisjointArm:
+    """
+    Code for linear UCB adapted from:
+    https://github.com/kfoofw/bandit_simulations/blob/master/python/contextual_bandits/notebooks/LinUCB_disjoint.ipynb
+    """
+
     def __init__(self, arm_index, d, alpha):
         # Track arm index
         self.arm_index = arm_index
@@ -343,8 +345,40 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
         return np.random.choice(self.possible_actions, p=probabilities)
 
 
-class MaxEntropyModelFreeContinuous(MaxEntropyModelFreeABC):
+class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABCMeta):
+    def __init__(self, *, mcmc_initial_state: float, **kwargs):
+        self.mcmc_initial_state = mcmc_initial_state
+        super(MaxEntropyModelFreeContinuousABC, self).__init__(**kwargs)
 
-    def get_action(self, context):
+    @abc.abstractmethod
+    def _get_mcmc_kernel(self, log_prob_function):
+        pass
+
+    def _get_action_after_pretrain(self, context: np.ndarray) -> float:
         # Here we need to implement sampling from an MCMC type thing
-        raise NotImplementedError
+
+        r = self.reward_estimator.predict_reward
+        alpha = self.alpha_entropy
+
+        def unnormalized_log_prob(a):
+            return r(a, context)/alpha
+
+        state = tfp.mcmc.sample_chain(
+            num_results=1,
+            num_burnin_steps=500,
+            current_state=self.mcmc_initial_state,
+            kernel=self._get_mcmc_kernel(log_prob_function=unnormalized_log_prob),
+            trace_fn=None)
+
+        #sample = tf.reduce_mean(states, axis=0)
+
+        return state
+
+
+class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):
+    def _get_mcmc_kernel(self, log_prob_function):
+        return tfp.mcmc.HamiltonianMonteCarlo(
+                target_log_prob_fn=log_prob_function,
+                step_size=1.0,
+                num_leapfrog_steps=2
+        )
