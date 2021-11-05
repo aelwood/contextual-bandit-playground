@@ -14,7 +14,7 @@ import tensorflow_probability as tfp
 from scipy.stats import norm
 
 if typing.TYPE_CHECKING:
-    from typing import Any, Iterable, NamedTuple, Optional, Sequence, Type, Union, Dict
+    from typing import Any, Iterable, NamedTuple, Optional, Sequence, Type, Union, Dict, Tuple
 
 
 class PolicyABC(metaclass=abc.ABCMeta):
@@ -285,6 +285,36 @@ class RidgeRegressionEstimator(RewardEstimatorABC):
         return r[0]
 
 
+class RewardLimiterMixin:
+    def __init__(self, *, action_bounds: Tuple[float,float], reward_bounds: Tuple[Optional[float],Optional[float]], force_negative: bool = False, **kwargs):
+        self.action_bounds = action_bounds
+        self.reward_bounds = reward_bounds
+        self.force_negative = force_negative
+        if force_negative:
+            assert self.reward_bounds[1] is not None
+
+        super(RewardLimiterMixin, self).__init__(**kwargs)
+
+    def predict_reward(self, action, context: np.ndarray) -> float:
+        if not self.action_bounds[0] <= action <= self.action_bounds[1]:
+            r = -np.inf
+        else:
+            r = super(RewardLimiterMixin, self).predict_reward(action, context)
+            if self.reward_bounds[1] is not None:
+                r = min(r, self.reward_bounds[1])
+            if self.reward_bounds[0] is not None:
+                r = max(r, self.reward_bounds[0])
+
+        if self.force_negative:
+            return r-self.reward_bounds[1] + self.reward_bounds[0]
+        else:
+            return r
+
+
+class LimitedRidgeRegressionEstimator(RewardLimiterMixin, RidgeRegressionEstimator):
+    pass
+
+
 class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
     def __init__(self, reward_estimator: RewardEstimatorABC, alpha_entropy: float, pretrain_time: int, pretrain_policy: PolicyABC):
         self.alpha_entropy = alpha_entropy
@@ -370,9 +400,10 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
             kernel=self._get_mcmc_kernel(log_prob_function=unnormalized_log_prob),
             trace_fn=None)
 
-        #sample = tf.reduce_mean(states, axis=0)
+        #sample = float(tf.reduce_mean(states, axis=0))
+        #return sample
 
-        return state
+        return float(state)
 
 
 class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):

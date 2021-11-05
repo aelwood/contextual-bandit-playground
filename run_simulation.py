@@ -2,7 +2,7 @@ import numpy as np
 
 from environments import SyntheticEnvironment
 from evaluator import Evaluator
-from policies import RandomPolicy, UcbPolicy, LinUcbPolicy, MaxEntropyModelFreeDiscrete, RidgeRegressionEstimator, ThompsonSamplingPolicy, MaxEntropyModelFreeContinuousHmc
+from policies import RandomPolicy, UcbPolicy, LinUcbPolicy, MaxEntropyModelFreeDiscrete, RidgeRegressionEstimator, ThompsonSamplingPolicy, MaxEntropyModelFreeContinuousHmc, LimitedRidgeRegressionEstimator
 
 from scipy.stats import uniform
 
@@ -172,7 +172,8 @@ def single_context_static_reward_hmc_policy():
         time_perturbation_function=lambda time, mu: mu,
     )
 
-    reward_estimator = RidgeRegressionEstimator(alpha_l2=1.0)
+    #reward_estimator = RidgeRegressionEstimator(alpha_l2=1.0)
+    reward_estimator = LimitedRidgeRegressionEstimator(alpha_l2=1.0, action_bounds=(0.,10.), reward_bounds=(0.0,1.0), force_negative=True)
     pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=10))
     policy = MaxEntropyModelFreeContinuousHmc(
         mcmc_initial_state=0.5,
@@ -221,7 +222,7 @@ if __name__ == "__main__":
             time_perturbation_function=lambda time, mu: mu + np.cos(time / 500) + 0.5,
         )
 
-        reward_estimator = RidgeRegressionEstimator(alpha_l2=1.0)
+        reward_estimator = LimitedRidgeRegressionEstimator(alpha_l2=1.0, action_lower_bound=0., max_reward=1.0)
         pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=10))
         policy = MaxEntropyModelFreeDiscrete(
             possible_actions=np.arange(1, 10, 1),
