@@ -261,6 +261,10 @@ class RewardEstimatorABC(metaclass=abc.ABCMeta):
     def predict_reward(self, action, context: np.ndarray) -> float:
         pass
 
+    @abc.abstractmethod
+    def predict_reward_maintaining_graph(self, action, context: np.ndarray) -> float:
+        pass
+
 
 class RidgeRegressionEstimator(RewardEstimatorABC):
 
@@ -284,6 +288,13 @@ class RidgeRegressionEstimator(RewardEstimatorABC):
         r = self.model.predict(X)
         return r[0]
 
+    def predict_reward_maintaining_graph(self, action, context: np.ndarray) -> float:
+
+        coef = self.model.coef_
+        intercept = self.model.intercept_
+
+        return tf.tensordot(tf.convert_to_tensor(coef, dtype='float32'), tf.concat([context,tf.expand_dims(action,0)], 0), 1) + intercept
+
 
 class RewardLimiterMixin:
     def __init__(self, *, action_bounds: Tuple[float,float], reward_bounds: Tuple[Optional[float],Optional[float]], force_negative: bool = False, **kwargs):
@@ -297,7 +308,7 @@ class RewardLimiterMixin:
 
     def predict_reward(self, action, context: np.ndarray) -> float:
         if not self.action_bounds[0] <= action <= self.action_bounds[1]:
-            r = -np.inf
+            r = 0  # TODO: do we want 0 here or -inf? 0 makes more sense to me...
         else:
             r = super(RewardLimiterMixin, self).predict_reward(action, context)
             if self.reward_bounds[1] is not None:
@@ -306,9 +317,40 @@ class RewardLimiterMixin:
                 r = max(r, self.reward_bounds[0])
 
         if self.force_negative:
-            return r-self.reward_bounds[1] + self.reward_bounds[0]
+            return r - self.reward_bounds[1]  # + self.reward_bounds[0]
         else:
             return r
+
+    def predict_reward_maintaining_graph(self, action, context: np.ndarray) -> float:
+        if self.force_negative:
+            raise NotImplementedError
+
+        # clip reward to 0
+        return tf.sigmoid(-(action - self.action_bounds[1]) * 1000) * \
+               tf.sigmoid((action - self.action_bounds[0]) * 1000) * \
+               tf.math.maximum(
+                   self.reward_bounds[0],
+                   tf.math.minimum(
+                       self.reward_bounds[1],
+                       super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
+                           action, context
+                       )
+                   )
+               )
+
+        # clip reward to - 999999
+        # FIXME - understand why this is wrong
+        # return (tf.sigmoid((action - self.action_bounds[1]) * 1000) * -999999 + 1) * \
+        #        (tf.sigmoid(-(action - self.action_bounds[0]) * 1000)*-999999 + 1) * \
+        #        tf.math.maximum(
+        #            self.reward_bounds[0],
+        #            tf.math.minimum(
+        #                self.reward_bounds[1],
+        #                super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
+        #                    action, context
+        #                )
+        #            )
+        #        )
 
 
 class LimitedRidgeRegressionEstimator(RewardLimiterMixin, RidgeRegressionEstimator):
@@ -387,15 +429,29 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
     def _get_action_after_pretrain(self, context: np.ndarray) -> float:
         # Here we need to implement sampling from an MCMC type thing
 
-        r = self.reward_estimator.predict_reward
+        r = self.reward_estimator.predict_reward_maintaining_graph
+
         alpha = self.alpha_entropy
+
+        # FIXME
+        #r(2.0,context)
+
+        # coef = self.reward_estimator.model.coef_
+        # intercept = self.reward_estimator.model.intercept_
 
         def unnormalized_log_prob(a):
             return r(a, context)/alpha
+            # return (coef[0]*context[0] + coef[1]*context[1] + coef[2]*context[2] + coef[3]*a + intercept) / alpha  # WORKS!!!
+            #return (tf.tensordot(tf.convert_to_tensor(coef, dtype='float32'), tf.concat([context,tf.expand_dims(a,0)], 0), 1) + intercept)/alpha
+
+        # unnormalized_log_prob = self.reward_estimator.get_unnormalized_log_prob(
+        #     context=context,
+        #     alpha_entropy=self.alpha_entropy
+        # )
 
         state = tfp.mcmc.sample_chain(
             num_results=1,
-            num_burnin_steps=500,
+            num_burnin_steps=100,
             current_state=self.mcmc_initial_state,
             kernel=self._get_mcmc_kernel(log_prob_function=unnormalized_log_prob),
             trace_fn=None)

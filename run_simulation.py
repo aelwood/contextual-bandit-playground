@@ -173,11 +173,11 @@ def single_context_static_reward_hmc_policy():
     )
 
     #reward_estimator = RidgeRegressionEstimator(alpha_l2=1.0)
-    reward_estimator = LimitedRidgeRegressionEstimator(alpha_l2=1.0, action_bounds=(0.,10.), reward_bounds=(0.0,1.0), force_negative=True)
+    reward_estimator = LimitedRidgeRegressionEstimator(alpha_l2=1.0, action_bounds=(0.,10.), reward_bounds=(0.0,1.0), force_negative=False)
     pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=10))
     policy = MaxEntropyModelFreeContinuousHmc(
         mcmc_initial_state=0.5,
-        alpha_entropy=0.02,
+        alpha_entropy=0.2,
         reward_estimator=reward_estimator,
         pretrain_time=100,
         pretrain_policy=pretrain_policy
