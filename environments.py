@@ -25,6 +25,10 @@ class EnvironmentABC(metaclass=abc.ABCMeta):
     def get_best_reward_action(self):
         pass
 
+    @abc.abstractmethod
+    def get_params(self):
+        pass
+
 
 class SyntheticEnvironment(EnvironmentABC, ABC):
     def __init__(
@@ -34,6 +38,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         time_perturbation_function,
         fixed_variances=0.6,
         n_context_features=3,
+        name='default',
     ):
         """
         It creates number_of_different_context context each of which is bind to a normal distribution.
@@ -46,6 +51,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         self.number_of_different_context = number_of_different_context
         self.number_of_observations = number_of_observations
         self.time_perturbation_function = time_perturbation_function
+        self.name = name
 
         # Generate the contexts
         context_vectors, context_ids = make_blobs(
@@ -73,8 +79,14 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
 
         # Generate reward functions
         self.context_reward_parameters = {
-            context_id: {"mu": context_id*4 + 1, "sigma": fixed_variances[context_id]}
+            context_id: {"mu": context_id * 4 + 1, "sigma": fixed_variances[context_id]}
             for context_id in range(number_of_different_context)
+        }
+
+    def get_params(self):
+        return {
+            "n_context": self.number_of_different_context,
+            "context_reward_parameters": self.context_reward_parameters,
         }
 
     def generate_contexts(self) -> Iterable[np.ndarray]:
@@ -137,7 +149,11 @@ if __name__ == "__main__":
     bests_context = []
 
     for i, c in enumerate(environment.generate_contexts()):
-        best_reward, best_context, stochastic_reward = environment.get_best_reward_action(c)
+        (
+            best_reward,
+            best_context,
+            stochastic_reward,
+        ) = environment.get_best_reward_action(c)
         bests_rewards.append(best_reward)
         bests_context.append(best_context)
 
