@@ -30,9 +30,14 @@ class PolicyABC(metaclass=abc.ABCMeta):
     def get_action(self, context):
         pass
 
+    @abc.abstractmethod
+    def get_params(self):
+        pass
+
 
 class RandomPolicy(PolicyABC):
     def __init__(self, distribution):
+        self.name = "random"
         assert type(distribution) == scipy.stats._distn_infrastructure.rv_frozen
         self.distribution = distribution
 
@@ -44,6 +49,9 @@ class RandomPolicy(PolicyABC):
 
     def get_action(self, context):
         return self.distribution.rvs()
+
+    def get_params(self):
+        return None
 
 
 class MABPolicyABC(PolicyABC):
@@ -61,11 +69,20 @@ class MABPolicyABC(PolicyABC):
         self.past_rewards = []
         self.past_actions = []
 
+    def get_params(self):
+        return {
+            "arm_values": self.arm_values,
+            "epsilon": self.epsilon,
+            "sw": self.sw,
+        }
+
     def train(self):
         alphas = collections.defaultdict(int)
         betas = collections.defaultdict(int)
         arm_ids = []
-        for action, reward in zip(self.past_actions[self.sw:], self.past_rewards[self.sw:]):
+        for action, reward in zip(
+            self.past_actions[self.sw :], self.past_rewards[self.sw :]
+        ):
             arm_id = self.values_arm[action]
             arm_ids.append(arm_id)
             is_success = reward
@@ -75,7 +92,9 @@ class MABPolicyABC(PolicyABC):
                 betas[arm_id] += 1
 
         for arm_id in np.unique(arm_ids):
-            self.arms[arm_id] = scipy.stats.beta(a=alphas[arm_id] + 1, b=betas[arm_id] + 1)
+            self.arms[arm_id] = scipy.stats.beta(
+                a=alphas[arm_id] + 1, b=betas[arm_id] + 1
+            )
 
     def notify_event(self, context, action, stochastic_reward):
         self.past_rewards.append(stochastic_reward)
@@ -95,6 +114,10 @@ class UcbPolicy(MABPolicyABC):
     epsilon = scalar from which consider the reward a positive reward
     sw = sliding windows parameters: number of samples to consider during the training phase
     """
+
+    def __init__(self,  arm_values: Dict[int, float], epsilon=0.02, sw=0):
+        self.name = "UCB1"
+        super(UcbPolicy, self).__init__(arm_values,epsilon,sw)
 
     def get_action(self, context):
         """
@@ -125,6 +148,10 @@ class UcbPolicy(MABPolicyABC):
 
 
 class ThompsonSamplingPolicy(MABPolicyABC):
+    def __init__(self,  arm_values: Dict[int, float], epsilon=0.02, sw=0):
+        self.name = "TS"
+        super(ThompsonSamplingPolicy, self).__init__(arm_values,epsilon,sw)
+
     def get_action(self, context):
         samples = {}
         for id_, arm_beta in self.arms.items():
@@ -171,7 +198,9 @@ class LinUcbDisjointArm:
 
         # Find ucb based on p formulation (mean + std_dev)
         # p is (1 x 1) dimension vector
-        p = np.dot(self.theta.T, x) + self.alpha * np.sqrt(np.dot(x.T, np.dot(A_inv, x)))
+        p = np.dot(self.theta.T, x) + self.alpha * np.sqrt(
+            np.dot(x.T, np.dot(A_inv, x))
+        )
 
         return p
 
@@ -189,11 +218,14 @@ class LinUcbDisjointArm:
 
 class LinUcbPolicy(PolicyABC):
     def __init__(self, arm_values: Dict[int, float], n_contex_features, alpha, sw=0):
+        self.name = 'LINUCB'
         self.arm_values = arm_values
         self.values_arm = {v: k for k, v in arm_values.items()}
+        self.alpha = alpha
 
         self.arms = {
-            a_id: LinUcbDisjointArm(arm_index=a_id, d=n_contex_features, alpha=alpha) for a_id in self.arm_values.keys()
+            a_id: LinUcbDisjointArm(arm_index=a_id, d=n_contex_features, alpha=alpha)
+            for a_id in self.arm_values.keys()
         }
 
         sw *= -1 if sw > 0 else 1
@@ -202,6 +234,14 @@ class LinUcbPolicy(PolicyABC):
         self.past_contexts = []
         self.past_rewards = []
         self.past_actions = []
+
+
+    def get_params(self):
+        return {
+            "arm_values": self.arm_values,
+            "alpha": self.alpha,
+            "sw": self.sw,
+        }
 
     def get_action(self, context):
         # Initiate ucb to be 0
@@ -237,7 +277,11 @@ class LinUcbPolicy(PolicyABC):
         for arm in self.arms.values():
             arm.init_arms()
 
-        for action, reward, context in zip(self.past_actions[self.sw:], self.past_rewards[self.sw:], self.past_contexts[self.sw:]):
+        for action, reward, context in zip(
+            self.past_actions[self.sw :],
+            self.past_rewards[self.sw :],
+            self.past_contexts[self.sw :],
+        ):
             arm_id = self.values_arm[action]
 
             is_success = reward
