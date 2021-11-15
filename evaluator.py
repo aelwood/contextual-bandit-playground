@@ -55,13 +55,13 @@ class Evaluator:
 
             # logs params shall call policy and env params
             if self.active_policy:
-                mlflow.log_param('policy_name', self.active_policy.name)
+                mlflow.log_param("policy_name", self.active_policy.name)
                 params = self.active_policy.get_params()
                 if params:
                     for k, v in params.items():
                         mlflow.log_param(k, v)
             if self.active_environment:
-                mlflow.log_param('env_name', self.active_environment.name)
+                mlflow.log_param("env_name", self.active_environment.name)
                 params = self.active_environment.get_params()
                 if params:
                     for k, v in params.items():

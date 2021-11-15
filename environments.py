@@ -38,7 +38,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         time_perturbation_function,
         fixed_variances=0.6,
         n_context_features=3,
-        name='default',
+        name="default",
     ):
         """
         It creates number_of_different_context context each of which is bind to a normal distribution.

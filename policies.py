@@ -14,7 +14,17 @@ import tensorflow_probability as tfp
 from scipy.stats import norm
 
 if typing.TYPE_CHECKING:
-    from typing import Any, Iterable, NamedTuple, Optional, Sequence, Type, Union, Dict, Tuple
+    from typing import (
+        Any,
+        Iterable,
+        NamedTuple,
+        Optional,
+        Sequence,
+        Type,
+        Union,
+        Dict,
+        Tuple,
+    )
 
 
 class PolicyABC(metaclass=abc.ABCMeta):
@@ -115,9 +125,9 @@ class UcbPolicy(MABPolicyABC):
     sw = sliding windows parameters: number of samples to consider during the training phase
     """
 
-    def __init__(self,  arm_values: Dict[int, float], epsilon=0.02, sw=0):
+    def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
         self.name = "UCB1"
-        super(UcbPolicy, self).__init__(arm_values,epsilon,sw)
+        super(UcbPolicy, self).__init__(arm_values, epsilon, sw)
 
     def get_action(self, context):
         """
@@ -148,9 +158,9 @@ class UcbPolicy(MABPolicyABC):
 
 
 class ThompsonSamplingPolicy(MABPolicyABC):
-    def __init__(self,  arm_values: Dict[int, float], epsilon=0.02, sw=0):
+    def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
         self.name = "TS"
-        super(ThompsonSamplingPolicy, self).__init__(arm_values,epsilon,sw)
+        super(ThompsonSamplingPolicy, self).__init__(arm_values, epsilon, sw)
 
     def get_action(self, context):
         samples = {}
@@ -218,7 +228,7 @@ class LinUcbDisjointArm:
 
 class LinUcbPolicy(PolicyABC):
     def __init__(self, arm_values: Dict[int, float], n_contex_features, alpha, sw=0):
-        self.name = 'LINUCB'
+        self.name = "LINUCB"
         self.arm_values = arm_values
         self.values_arm = {v: k for k, v in arm_values.items()}
         self.alpha = alpha
@@ -234,7 +244,6 @@ class LinUcbPolicy(PolicyABC):
         self.past_contexts = []
         self.past_rewards = []
         self.past_actions = []
-
 
     def get_params(self):
         return {
@@ -298,7 +307,12 @@ class RewardEstimatorABC(metaclass=abc.ABCMeta):
     """This is a class that predicts a reward given a context"""
 
     @abc.abstractmethod
-    def train(self, past_contexts: Sequence[np.ndarray], past_rewards: Sequence[float], past_actions: Sequence[float]):
+    def train(
+        self,
+        past_contexts: Sequence[np.ndarray],
+        past_rewards: Sequence[float],
+        past_actions: Sequence[float],
+    ):
         pass
 
     @abc.abstractmethod
@@ -311,23 +325,35 @@ class RewardEstimatorABC(metaclass=abc.ABCMeta):
 
 
 class RidgeRegressionEstimator(RewardEstimatorABC):
+    @property
+    def name(self):
+        return self.__class__
 
-    def __init__(self, alpha_l2 = 1.0):
+    def __init__(self, alpha_l2=1.0):
         self.model: Optional[sklm.Ridge] = None
         self.alpha_l2 = alpha_l2
 
     def _prepare_x(self, contexts: Sequence[np.ndarray], actions: Sequence[float]):
         # TODO implement robust normalisation of data here?
-        return np.concatenate([np.array(contexts), np.array(actions).reshape(-1,1)], axis=1)
+        return np.concatenate(
+            [np.array(contexts), np.array(actions).reshape(-1, 1)], axis=1
+        )
 
-    def train(self, past_contexts: Sequence[np.ndarray], past_rewards: Sequence[float], past_actions: Sequence[float]):
+    def train(
+        self,
+        past_contexts: Sequence[np.ndarray],
+        past_rewards: Sequence[float],
+        past_actions: Sequence[float],
+    ):
         X = self._prepare_x(past_contexts, past_actions)
         y = np.array(past_rewards)
         self.model = sklm.Ridge(alpha=self.alpha_l2)
-        self.model.fit(X,y)
+        self.model.fit(X, y)
 
     def predict_reward(self, action, context: np.ndarray) -> float:
-        assert self.model is not None, "Model likely hasn't been trained before being used"
+        assert (
+            self.model is not None
+        ), "Model likely hasn't been trained before being used"
         X = self._prepare_x([context], [action])
         r = self.model.predict(X)
         return r[0]
@@ -337,11 +363,25 @@ class RidgeRegressionEstimator(RewardEstimatorABC):
         coef = self.model.coef_
         intercept = self.model.intercept_
 
-        return tf.tensordot(tf.convert_to_tensor(coef, dtype='float32'), tf.concat([context,tf.expand_dims(action,0)], 0), 1) + intercept
+        return (
+            tf.tensordot(
+                tf.convert_to_tensor(coef, dtype="float32"),
+                tf.concat([context, tf.expand_dims(action, 0)], 0),
+                1,
+            )
+            + intercept
+        )
 
 
 class RewardLimiterMixin:
-    def __init__(self, *, action_bounds: Tuple[float,float], reward_bounds: Tuple[Optional[float],Optional[float]], force_negative: bool = False, **kwargs):
+    def __init__(
+        self,
+        *,
+        action_bounds: Tuple[float, float],
+        reward_bounds: Tuple[Optional[float], Optional[float]],
+        force_negative: bool = False,
+        **kwargs
+    ):
         self.action_bounds = action_bounds
         self.reward_bounds = reward_bounds
         self.force_negative = force_negative
@@ -370,17 +410,19 @@ class RewardLimiterMixin:
             raise NotImplementedError
 
         # clip reward to 0
-        return tf.sigmoid(-(action - self.action_bounds[1]) * 1000) * \
-               tf.sigmoid((action - self.action_bounds[0]) * 1000) * \
-               tf.math.maximum(
-                   self.reward_bounds[0],
-                   tf.math.minimum(
-                       self.reward_bounds[1],
-                       super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
-                           action, context
-                       )
-                   )
-               )
+        return (
+            tf.sigmoid(-(action - self.action_bounds[1]) * 1000)
+            * tf.sigmoid((action - self.action_bounds[0]) * 1000)
+            * tf.math.maximum(
+                self.reward_bounds[0],
+                tf.math.minimum(
+                    self.reward_bounds[1],
+                    super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
+                        action, context
+                    ),
+                ),
+            )
+        )
 
         # clip reward to - 999999
         # FIXME - understand why this is wrong
@@ -402,7 +444,13 @@ class LimitedRidgeRegressionEstimator(RewardLimiterMixin, RidgeRegressionEstimat
 
 
 class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
-    def __init__(self, reward_estimator: RewardEstimatorABC, alpha_entropy: float, pretrain_time: int, pretrain_policy: PolicyABC):
+    def __init__(
+        self,
+        reward_estimator: RewardEstimatorABC,
+        alpha_entropy: float,
+        pretrain_time: int,
+        pretrain_policy: PolicyABC,
+    ):
         self.alpha_entropy = alpha_entropy
         self.reward_estimator = reward_estimator
 
@@ -418,7 +466,9 @@ class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
         if self.pretrain_counter < self.pretrain_time:
             self.pretrain_policy.train()
 
-        self.reward_estimator.train(self.past_contexts, self.past_rewards, self.past_actions)
+        self.reward_estimator.train(
+            self.past_contexts, self.past_rewards, self.past_actions
+        )
 
     def notify_event(self, context: np.ndarray, action: float, reward: float):
         if self.pretrain_counter < self.pretrain_time:
@@ -439,14 +489,26 @@ class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
     def _get_action_after_pretrain(self, context: np.ndarray) -> float:
         pass
 
+    def get_params(self):
+        return {
+            "alpha_entropy": self.alpha_entropy,
+            "reward_estimator": self.reward_estimator.name,
+        }
+
 
 class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
     """This is equivalent to the method described in  Contextual bandit Shannon Entropy exploration:
     http://ras.papercept.net/images/temp/IROS/files/1465.pdf"""
 
     def __init__(self, *, possible_actions: Sequence[float], **kwargs):
+        self.name = "MaxEntropyModelFreeDiscrete"
         self.possible_actions = possible_actions
         super(MaxEntropyModelFreeDiscrete, self).__init__(**kwargs)
+
+    def get_params(self):
+        fd = super(MaxEntropyModelFreeDiscrete, self).get_params()
+        fd["possible_actions"] = self.possible_actions
+        return fd
 
     def _get_action_after_pretrain(self, context):
 
@@ -466,6 +528,11 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
         self.mcmc_initial_state = mcmc_initial_state
         super(MaxEntropyModelFreeContinuousABC, self).__init__(**kwargs)
 
+    def get_params(self):
+        fd = super(MaxEntropyModelFreeContinuousABC, self).get_params()
+        fd["mcmc_initial_state"] = self.mcmc_initial_state
+        return fd
+
     @abc.abstractmethod
     def _get_mcmc_kernel(self, log_prob_function):
         pass
@@ -478,15 +545,15 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
         alpha = self.alpha_entropy
 
         # FIXME
-        #r(2.0,context)
+        # r(2.0,context)
 
         # coef = self.reward_estimator.model.coef_
         # intercept = self.reward_estimator.model.intercept_
 
         def unnormalized_log_prob(a):
-            return r(a, context)/alpha
+            return r(a, context) / alpha
             # return (coef[0]*context[0] + coef[1]*context[1] + coef[2]*context[2] + coef[3]*a + intercept) / alpha  # WORKS!!!
-            #return (tf.tensordot(tf.convert_to_tensor(coef, dtype='float32'), tf.concat([context,tf.expand_dims(a,0)], 0), 1) + intercept)/alpha
+            # return (tf.tensordot(tf.convert_to_tensor(coef, dtype='float32'), tf.concat([context,tf.expand_dims(a,0)], 0), 1) + intercept)/alpha
 
         # unnormalized_log_prob = self.reward_estimator.get_unnormalized_log_prob(
         #     context=context,
@@ -498,18 +565,21 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
             num_burnin_steps=100,
             current_state=self.mcmc_initial_state,
             kernel=self._get_mcmc_kernel(log_prob_function=unnormalized_log_prob),
-            trace_fn=None)
+            trace_fn=None,
+        )
 
-        #sample = float(tf.reduce_mean(states, axis=0))
-        #return sample
+        # sample = float(tf.reduce_mean(states, axis=0))
+        # return sample
 
         return float(state)
 
 
 class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):
+    def __init__(self, **kwargs):
+        self.name = "MaxEntropyModelFreeContinuousHmc"
+        super(MaxEntropyModelFreeContinuousHmc, self).__init__(**kwargs)
+
     def _get_mcmc_kernel(self, log_prob_function):
         return tfp.mcmc.HamiltonianMonteCarlo(
-                target_log_prob_fn=log_prob_function,
-                step_size=1.0,
-                num_leapfrog_steps=2
+            target_log_prob_fn=log_prob_function, step_size=1.0, num_leapfrog_steps=2
         )
