@@ -321,11 +321,13 @@ if __name__ == "__main__":
                 number_of_different_context=1,
                 number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu,
+                name='single_context_static_reward',
             ),
             SyntheticEnvironment(
                 number_of_different_context=2,
                 number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu,
+                name='double_context_static_reward',
             ),
             SyntheticEnvironment(
                 number_of_different_context=1,
@@ -333,6 +335,7 @@ if __name__ == "__main__":
                 time_perturbation_function=lambda time, mu: mu
                 + np.cos(time / 1_000)
                 + 0.5,
+                name='single_context_dynamic_reward',
             ),
             SyntheticEnvironment(
                 number_of_different_context=2,
@@ -340,6 +343,8 @@ if __name__ == "__main__":
                 time_perturbation_function=lambda time, mu: mu
                 + np.cos(time / 1_000)
                 + 0.5,
+                name='double_context_dynamic_reward',
+
             ),
             SyntheticEnvironment(
                 number_of_different_context=1,
@@ -347,32 +352,34 @@ if __name__ == "__main__":
                 time_perturbation_function=lambda time, mu: mu
                 + np.cos(time / 500)
                 + 0.5,
+                name='single_context_dynamic_reward_slow',
+
             ),
+
             SyntheticEnvironment(
                 number_of_different_context=2,
                 number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu
                 + np.cos(time / 500)
                 + 0.5,
+                name='double_context_dynamic_reward_slow',
+
             ),
         ]
 
         possible_policies = [
-            UcbPolicy({k: v for k, v in enumerate(np.arange(1, 6, 2))}),
-            ThompsonSamplingPolicy({k: v for k, v in enumerate(np.arange(1, 6, 2))}),
-            UcbPolicy({k: v for k, v in enumerate(np.arange(0.0, 3, 0.5))}),
+            UcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))}),
+            UcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))},sw = -200),
             ThompsonSamplingPolicy(
-                {k: v for k, v in enumerate(np.arange(0.0, 3, 0.5))}
+                {k: v for k, v in enumerate(np.arange(0, 8, 0.5))}
             ),
+
             ThompsonSamplingPolicy(
-                {k: v for k, v in enumerate(np.arange(0.0, 3, 0.5))}, sw=-200
+                {k: v for k, v in enumerate(np.arange(0, 8, 0.5))}, sw=-200
             ),
-            UcbPolicy({k: v for k, v in enumerate(np.arange(0.0, 3, 0.5))}, sw=-200),
-            UcbPolicy({k: v for k, v in enumerate(np.arange(0.0, 7, 1.0))}, sw=-200),
-            UcbPolicy({k: v for k, v in enumerate(np.arange(0.0, 7, 1.0))}),
-            LinUcbPolicy({k: v for k, v in enumerate(np.arange(1, 7, 2))}, 2, 0.01),
-            LinUcbPolicy({k: v for k, v in enumerate(np.arange(1, 7, 2))}, 2, 0.01),
-            LinUcbPolicy({k: v for k, v in enumerate(np.arange(1, 7, 0.5))}, 2, 0.01),
+
+            LinUcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))}, 3, 0.01),
+
             # MaxEntropyModelFreeDiscrete(
             #     possible_actions=np.arange(1, 10, 1),
             #     alpha_entropy=0.02,
@@ -398,9 +405,11 @@ if __name__ == "__main__":
 
         for policy_base in possible_policies:
             for environment in possible_environments:
-                policy = policy_base.clone()
+                policy = policy_base.__copy__()
+                print(f'Running {policy.name} - {environment.name}')
+
                 evaluator = Evaluator(
-                    run_name="",
+                    run_name=f"{policy.name}__{environment.name}",
                     save_data=True,
                     plot_data=False,
                     use_mlflow=True,

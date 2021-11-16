@@ -68,8 +68,7 @@ class Evaluator:
                         mlflow.log_param(k, v)
 
     def end(self):
-        if self.plot_data:
-            self.plot()
+        self.plot(self.plot_data)
         if self.save_data:
             self.save()
         if self.use_mlflow:
@@ -77,7 +76,7 @@ class Evaluator:
 
     def save(self):
         file_to_save = {"oracle": self.oracle, "policy": self.policy}
-        path = self.saving_dir + self.run_name
+        path = self.saving_dir + 'dump/' + self.run_name
         save_obj(file_to_save, path)
         print(f"File saved to {path}")
 
@@ -142,7 +141,7 @@ class Evaluator:
     def get_stats(self):
         return f"Average oracle reward {np.mean(self.oracle['rewards']):2.4f} vs policy {np.mean(self.policy['rewards']):2.4f}"
 
-    def plot(self):
+    def plot(self, display):
 
         plt.figure(figsize=(16, 9))
 
@@ -195,6 +194,9 @@ class Evaluator:
         )
 
         ax3.legend()
-
         ax1.legend()
-        plt.show()
+        if display:
+            plt.show()
+        else:
+            path = self.saving_dir + 'plots/' + self.run_name + '.png'
+            plt.savefig(path)
