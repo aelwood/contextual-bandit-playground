@@ -79,6 +79,32 @@ class RandomPolicy(PolicyABC):
         return None
 
 
+class CyclicExploration(PolicyABC):
+    def __init__(self, arm_values:  Sequence[float]):
+        self.name = "CyclicExploration"
+        self.arm_values = arm_values
+        self.last_called_item = 0
+
+    def __copy__(self):
+        return CyclicExploration(self.arm_values)
+
+    def __deepcopy__(self, memo):
+        return CyclicExploration(copy.deepcopy(self.arm_values, memo))
+
+    def train(self):
+        pass
+
+    def notify_event(self, context, action, reward):
+        pass
+
+    def get_action(self, context):
+        item_to_return = self.arm_values[self.last_called_item%len(self.arm_values)]
+        self.last_called_item += 1
+        return item_to_return
+
+    def get_params(self):
+        return None
+
 class MABPolicyABC(PolicyABC):
     def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
         self.arm_values = arm_values
@@ -417,6 +443,54 @@ class RidgeRegressionEstimator(RewardEstimatorABC):
         )
 
 
+
+class RidgeRegressionEstimatorModelPerArm(RidgeRegressionEstimator):
+
+    def __init__(self, actions, **kwargs):
+        self.actions = actions
+        self.model: Optional[Dict[int, sklm.Ridge]] = None
+        super(RidgeRegressionEstimatorModelPerArm,self).__init__(**kwargs)
+
+    def train(
+        self,
+        past_contexts: Sequence[np.ndarray],
+        past_rewards: Sequence[float],
+        past_actions: Sequence[float],
+    ):
+        model_dict = {}
+        for action in self.actions:
+            X = np.array(past_contexts)[past_actions==action]
+            y = np.array(past_rewards)[past_actions==action]
+            model = sklm.Ridge(alpha=self.alpha_l2)
+            model.fit(X, y)
+            model_dict[action]=model
+
+        self.model=model_dict
+
+    def predict_reward(self, action, context: np.ndarray) -> float:
+        assert (
+            self.model[action] is not None
+        ), "Model likely hasn't been trained before being used"
+        X = np.array(context).reshape(1, -1)
+        r = self.model[action].predict(X)
+        return r[0]
+
+    def predict_reward_maintaining_graph(self, action, context: np.ndarray) -> float:
+        # LINEARM MODELS = # ACTION
+
+        coef = self.model[action].coef_
+        intercept = self.model[action].intercept_
+
+        return (
+            tf.tensordot(
+                tf.convert_to_tensor(coef, dtype="float32"),
+               context,
+                1,
+            )
+            + intercept
+        )
+
+
 class RewardLimiterMixin:
     def __init__(
         self,
@@ -487,6 +561,10 @@ class LimitedRidgeRegressionEstimator(RewardLimiterMixin, RidgeRegressionEstimat
     pass
 
 
+class LimitedRidgeRegressionEstimatorModelPerArm(RewardLimiterMixin,RidgeRegressionEstimatorModelPerArm):
+    pass
+
+
 class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
     def __init__(
         self,
@@ -517,10 +595,10 @@ class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
     def train(self):
         if self.pretrain_counter < self.pretrain_time:
             self.pretrain_policy.train()
-
-        self.reward_estimator.train(
-            self.past_contexts, self.past_rewards, self.past_actions
-        )
+        else: #TODO: Ask Adam if it is ok for him
+            self.reward_estimator.train(
+                self.past_contexts, self.past_rewards, self.past_actions
+            )
 
     def notify_event(self, context: np.ndarray, action: float, reward: float):
         if self.pretrain_counter < self.pretrain_time:
@@ -552,8 +630,8 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
     """This is equivalent to the method described in  Contextual bandit Shannon Entropy exploration:
     http://ras.papercept.net/images/temp/IROS/files/1465.pdf"""
 
-    def __init__(self, *, possible_actions: Sequence[float], **kwargs):
-        self.name = "MaxEntropyModelFreeDiscrete"
+    def __init__(self, *, possible_actions: Sequence[float], name='MaxEntropyModelFreeDiscrete', **kwargs):
+        self.name = name
         self.possible_actions = possible_actions
         super(MaxEntropyModelFreeDiscrete, self).__init__(**kwargs)
 
@@ -561,6 +639,7 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
         return MaxEntropyModelFreeDiscrete(
             **{
                 "possible_actions": self.possible_actions,
+                "name":self.name,
                 "reward_estimator": self.reward_estimator,
                 "alpha_entropy": self.alpha_entropy,
                 "pretrain_time": self.pretrain_time,
@@ -572,6 +651,7 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
         return MaxEntropyModelFreeDiscrete(
             copy.deepcopy(
                 self.possible_actions,
+                self.name,
                 self.reward_estimator,
                 self.alpha_entropy,
                 self.pretrain_time,
@@ -586,7 +666,6 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
         return fd
 
     def _get_action_after_pretrain(self, context):
-
         probabilities = []
         for a in self.possible_actions:
             r = self.reward_estimator.predict_reward(a, context)
@@ -656,11 +735,11 @@ class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):
 
     def __copy__(self):
         return MaxEntropyModelFreeContinuousHmc(
-            self.mcmc_initial_state,
-            self.reward_estimator,
-            self.alpha_entropy,
-            self.pretrain_time,
-            self.pretrain_policy,
+            **{"mcmc_initial_state":self.mcmc_initial_state,
+            "reward_estimator":self.reward_estimator,
+            "alpha_entropy":self.alpha_entropy,
+            "pretrain_time":self.pretrain_time,
+            "pretrain_policy":self.pretrain_policy,}
         )
 
     def __deepcopy__(self, memo):

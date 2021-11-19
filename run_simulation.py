@@ -10,7 +10,7 @@ from policies import (
     RidgeRegressionEstimator,
     ThompsonSamplingPolicy,
     MaxEntropyModelFreeContinuousHmc,
-    LimitedRidgeRegressionEstimator,
+    LimitedRidgeRegressionEstimator, LimitedRidgeRegressionEstimatorModelPerArm, CyclicExploration,
 )
 
 from scipy.stats import uniform
@@ -54,6 +54,27 @@ def single_context_static_reward_random_policy():
     )
 
     simulate(environment, policy, evaluator, evaluation_frequency=100)
+
+
+def single_context_static_reward_cyclicexploration_policy():
+    environment = SyntheticEnvironment(
+        number_of_different_context=1,
+        number_of_observations=100,
+        time_perturbation_function=lambda time, mu: mu,
+    )
+    policy = CyclicExploration(np.arange(1, 6, 2))
+
+    evaluator = Evaluator(
+        run_name="single_context_static_reward_cyclicexploration_policy",
+        save_data=True,
+        plot_data=False,
+        use_mlflow=True,
+        policy=policy,
+        environment=environment,
+    )
+
+    simulate(environment, policy, evaluator, evaluation_frequency=100)
+
 
 
 def single_context_static_reward_ucb_policy():
@@ -304,7 +325,8 @@ if __name__ == "__main__":
     run_ablation_test = True
 
     if not run_ablation_test:
-        single_context_static_reward_random_policy()
+        # single_context_static_reward_random_policy()
+        single_context_static_reward_cyclicexploration_policy()
         # single_context_static_reward_ucb_policy()
         # single_context_dynamic_reward_ucb_policy()
         # single_context_dynamic_reward_ucb_sw_policy() # ??? why
@@ -314,7 +336,7 @@ if __name__ == "__main__":
         # double_context_static_reward_LinUcbPolicy_policy()
         # single_context_static_reward_hmc_policy()
     else:
-        number_of_observations = 2_000
+        number_of_observations = 500
 
         possible_environments = [
             SyntheticEnvironment(
@@ -323,12 +345,12 @@ if __name__ == "__main__":
                 time_perturbation_function=lambda time, mu: mu,
                 name="single_context_static_reward",
             ),
-            # SyntheticEnvironment(
-            #     number_of_different_context=2,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu,
-            #     name='double_context_static_reward',
-            # ),
+            SyntheticEnvironment(
+                number_of_different_context=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu,
+                name='double_context_static_reward',
+            ),
             # SyntheticEnvironment(
             #     number_of_different_context=1,
             #     number_of_observations=number_of_observations,
@@ -367,18 +389,22 @@ if __name__ == "__main__":
             # ),
         ]
 
+
+        default_actions_range = np.arange(0, 8, 1)
         possible_policies = [
-            UcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))}),
-            UcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))},sw = -200),
-            ThompsonSamplingPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))}),
+            # UcbPolicy({k: v for k, v in enumerate(default_actions_range)}),
+            # UcbPolicy({k: v for k, v in enumerate(default_actions_range)},sw = -200),
+            # ThompsonSamplingPolicy({k: v for k, v in enumerate(default_actions_range)}),
             #
             # ThompsonSamplingPolicy(
-            #     {k: v for k, v in enumerate(np.arange(0, 8, 0.5))}, sw=-200
+            #     {k: v for k, v in enumerate(default_actions_range)}, sw=-200
             # ),
             #
-            # LinUcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))}, 3, 0.01),
+            # LinUcbPolicy({k: v for k, v in enumerate(default_actions_range)}, 3, 0.01),
+
+
             # MaxEntropyModelFreeDiscrete(
-            #     possible_actions=np.arange(0, 8, 0.5),
+            #     possible_actions=default_actions_range,
             #     alpha_entropy=0.02,
             #     reward_estimator=LimitedRidgeRegressionEstimator(
             #         alpha_l2=1.0, action_bounds=[0,8], reward_bounds=[0,1],
@@ -386,6 +412,18 @@ if __name__ == "__main__":
             #     pretrain_time=10,
             #     pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
             # ),
+
+            MaxEntropyModelFreeDiscrete(
+                possible_actions=default_actions_range,
+                name='MaxEntropyModelFreeDiscrete_MPA',
+                alpha_entropy=0.02,
+                reward_estimator=LimitedRidgeRegressionEstimatorModelPerArm(actions=default_actions_range,
+                    alpha_l2=1.0, action_bounds=[0, 8], reward_bounds=[0, 1],
+                ),
+                pretrain_time=50,
+                pretrain_policy=CyclicExploration(default_actions_range),
+            ),
+
             # MaxEntropyModelFreeContinuousHmc(
             #     mcmc_initial_state=0.5,
             #     alpha_entropy=0.2,
