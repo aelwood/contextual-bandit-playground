@@ -11,6 +11,7 @@ from policies import (
     ThompsonSamplingPolicy,
     MaxEntropyModelFreeContinuousHmc,
     LimitedRidgeRegressionEstimator, LimitedRidgeRegressionEstimatorModelPerArm, CyclicExploration,
+    LimitedLogisticRegressionEstimator,
 )
 
 from scipy.stats import uniform
@@ -345,12 +346,12 @@ if __name__ == "__main__":
                 time_perturbation_function=lambda time, mu: mu,
                 name="single_context_static_reward",
             ),
-            SyntheticEnvironment(
-                number_of_different_context=2,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu,
-                name='double_context_static_reward',
-            ),
+            # SyntheticEnvironment(
+            #     number_of_different_context=2,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu,
+            #     name='double_context_static_reward',
+            # ),
             # SyntheticEnvironment(
             #     number_of_different_context=1,
             #     number_of_observations=number_of_observations,
@@ -403,26 +404,39 @@ if __name__ == "__main__":
             # LinUcbPolicy({k: v for k, v in enumerate(default_actions_range)}, 3, 0.01),
 
 
+            MaxEntropyModelFreeDiscrete(
+                possible_actions=default_actions_range,
+                alpha_entropy=0.02,
+                reward_estimator=LimitedRidgeRegressionEstimator(
+                    alpha_l2=1.0, action_bounds=[0,8], reward_bounds=[0,1],
+                ),
+                pretrain_time=10,
+                pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+            ),
+            #
             # MaxEntropyModelFreeDiscrete(
             #     possible_actions=default_actions_range,
+            #     name='MaxEntropyModelFreeDiscrete_MPA',
             #     alpha_entropy=0.02,
-            #     reward_estimator=LimitedRidgeRegressionEstimator(
-            #         alpha_l2=1.0, action_bounds=[0,8], reward_bounds=[0,1],
+            #     reward_estimator=LimitedRidgeRegressionEstimatorModelPerArm(actions=default_actions_range,
+            #         alpha_l2=1.0, action_bounds=[0, 8], reward_bounds=[0, 1],
             #     ),
-            #     pretrain_time=10,
-            #     pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+            #     pretrain_time=50,
+            #     pretrain_policy=CyclicExploration(default_actions_range),
             # ),
 
             MaxEntropyModelFreeDiscrete(
                 possible_actions=default_actions_range,
-                name='MaxEntropyModelFreeDiscrete_MPA',
+                name='MaxEntropyModelFreeDiscreteLOGISTIC',
                 alpha_entropy=0.02,
-                reward_estimator=LimitedRidgeRegressionEstimatorModelPerArm(actions=default_actions_range,
-                    alpha_l2=1.0, action_bounds=[0, 8], reward_bounds=[0, 1],
+                reward_estimator=LimitedLogisticRegressionEstimator(
+                    action_bounds=[0, 8], reward_bounds=[0, 1],
                 ),
-                pretrain_time=50,
-                pretrain_policy=CyclicExploration(default_actions_range),
+                pretrain_time=10,
+                pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
             ),
+
+
 
             # MaxEntropyModelFreeContinuousHmc(
             #     mcmc_initial_state=0.5,

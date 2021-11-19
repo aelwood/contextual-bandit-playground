@@ -393,20 +393,24 @@ class RewardEstimatorABC(metaclass=abc.ABCMeta):
         pass
 
 
-class RidgeRegressionEstimator(RewardEstimatorABC):
+
+class LinearRegressionEstimatorABC(RewardEstimatorABC):
     @property
     def name(self):
         return self.__class__
 
-    def __init__(self, alpha_l2=1.0):
-        self.model: Optional[sklm.Ridge] = None  # DICT OF MODELS
-        self.alpha_l2 = alpha_l2
+    @abc.abstractmethod
+    def get_model(self):
+        pass
 
     def _prepare_x(self, contexts: Sequence[np.ndarray], actions: Sequence[float]):
         # TODO implement robust normalisation of data here?
         return np.concatenate(
             [np.array(contexts), np.array(actions).reshape(-1, 1)], axis=1
         )
+
+    def _prepare_y(self,y):
+        return np.array(y)
 
     def train(
         self,
@@ -415,8 +419,8 @@ class RidgeRegressionEstimator(RewardEstimatorABC):
         past_actions: Sequence[float],
     ):
         X = self._prepare_x(past_contexts, past_actions)
-        y = np.array(past_rewards)
-        self.model = sklm.Ridge(alpha=self.alpha_l2)
+        y = self._prepare_y(past_rewards)
+        self.model = self.get_model()
         self.model.fit(X, y)
 
     def predict_reward(self, action, context: np.ndarray) -> float:
@@ -428,8 +432,6 @@ class RidgeRegressionEstimator(RewardEstimatorABC):
         return r[0]
 
     def predict_reward_maintaining_graph(self, action, context: np.ndarray) -> float:
-        # LINEARM MODELS = # ACTION
-
         coef = self.model.coef_
         intercept = self.model.intercept_
 
@@ -443,9 +445,26 @@ class RidgeRegressionEstimator(RewardEstimatorABC):
         )
 
 
+class RidgeRegressionEstimator(LinearRegressionEstimatorABC):
+    def __init__(self, alpha_l2=1.0):
+        self.model: Optional[sklm.Ridge] = None  # DICT OF MODELS
+        self.alpha_l2 = alpha_l2
+
+    def get_model(self):
+        return sklm.Ridge(alpha=self.alpha_l2)
+
+
+class LogisticRegressionEstimator(LinearRegressionEstimatorABC):
+    def __init__(self):
+        self.model: Optional[sklm.LogisticRegression] = None  # DICT OF MODELS
+
+    def get_model(self):
+        return sklm.LogisticRegression()
+
+    def _prepare_y(self,y):
+        return np.array(y)
 
 class RidgeRegressionEstimatorModelPerArm(RidgeRegressionEstimator):
-
     def __init__(self, actions, **kwargs):
         self.actions = actions
         self.model: Optional[Dict[int, sklm.Ridge]] = None
@@ -527,20 +546,20 @@ class RewardLimiterMixin:
         if self.force_negative:
             raise NotImplementedError
 
-        # clip reward to 0
-        return (
-            tf.sigmoid(-(action - self.action_bounds[1]) * 1000)
-            * tf.sigmoid((action - self.action_bounds[0]) * 1000)
-            * tf.math.maximum(
-                self.reward_bounds[0],
-                tf.math.minimum(
-                    self.reward_bounds[1],
-                    super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
-                        action, context
-                    ),
-                ),
-            )
-        )
+        # # clip reward to 0
+        # return (
+        #     tf.sigmoid(-(action - self.action_bounds[1]) * 1000)
+        #     * tf.sigmoid((action - self.action_bounds[0]) * 1000)
+        #     * tf.math.maximum(
+        #         self.reward_bounds[0],
+        #         tf.math.minimum(
+        #             self.reward_bounds[1],
+        #             super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
+        #                 action, context
+        #             ),
+        #         ),
+        #     )
+        # )
 
         # clip reward to - 999999
         # FIXME - understand why this is wrong
@@ -555,9 +574,24 @@ class RewardLimiterMixin:
         #                )
         #            )
         #        )
+        return ((tf.sigmoid((action-self.action_bounds[0])*100_000) *
+               (1-tf.sigmoid((action-self.action_bounds[1])*100_000)) -1) * 999999 + 1)* \
+               tf.math.maximum(
+                   self.reward_bounds[0],
+                   tf.math.minimum(
+                       self.reward_bounds[1],
+                       super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
+                           action, context
+                       )
+                   )
+               )
 
 
 class LimitedRidgeRegressionEstimator(RewardLimiterMixin, RidgeRegressionEstimator):
+    pass
+
+
+class LimitedLogisticRegressionEstimator(RewardLimiterMixin, LogisticRegressionEstimator):
     pass
 
 
