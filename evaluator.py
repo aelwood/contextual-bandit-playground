@@ -50,33 +50,35 @@ class Evaluator:
             self.cumulative_stochastic_reward_oracle = 0.0
             self.cumulative_expected_reward_policy = 0.0
             self.cumulative_expected_reward_oracle = 0.0
+            self.step = 0
 
             mlflow.start_run(run_name=self.run_name)
 
             # logs params shall call policy and env params
-            if self.active_policy:
-                mlflow.log_param("policy_name", self.active_policy.name)
-                params = self.active_policy.get_params()
-                if params:
-                    for k, v in params.items():
-                        mlflow.log_param(k, v)
-            if self.active_environment:
-                mlflow.log_param("env_name", self.active_environment.name)
-                params = self.active_environment.get_params()
-                if params:
-                    for k, v in params.items():
-                        mlflow.log_param(k, v)
+
+            mlflow.log_param("env_name", self.active_environment.name)
+            mlflow.log_param("policy_name", self.active_policy.name)
+
+            params = self.active_policy.get_params()
+            if params:
+                for k, v in params.items():
+                    mlflow.log_param(k, v)
+
+            params = self.active_environment.get_params()
+            if params:
+                for k, v in params.items():
+                    mlflow.log_param(k, v)
 
     def end(self):
+        if self.use_mlflow:
+            mlflow.end_run()
         self.plot(self.plot_data)
         if self.save_data:
             self.save()
-        if self.use_mlflow:
-            mlflow.end_run()
 
     def save(self):
         file_to_save = {"oracle": self.oracle, "policy": self.policy}
-        path = self.saving_dir + 'dump/' + self.run_name
+        path = self.saving_dir + "dump/" + self.run_name
         save_obj(file_to_save, path)
         print(f"File saved to {path}")
 
@@ -98,15 +100,6 @@ class Evaluator:
         self.oracle["stochastic_reward"].append(stochastic_reward)
 
         if self.use_mlflow:
-            mlflow.log_metric("played_action", played_action)
-            mlflow.log_metric("obtained_reward", obtained_reward)
-            mlflow.log_metric(
-                "obtained_stochastic_reward", obtained_stochastic_reward * 1
-            )
-            mlflow.log_metric("optimal_action", optimal_action)
-            mlflow.log_metric("optimal_reward", optimal_reward)
-            mlflow.log_metric("stochastic_reward", stochastic_reward * 1)
-
             self.cumulative_stochastic_reward_policy += obtained_stochastic_reward
             self.cumulative_stochastic_reward_oracle += stochastic_reward
             self.cumulative_expected_reward_policy += obtained_reward
@@ -119,24 +112,25 @@ class Evaluator:
                 self.cumulative_expected_reward_oracle
                 - self.cumulative_expected_reward_policy
             )
-            mlflow.log_metric(
-                "cumulative_stochastic_reward_policy",
-                self.cumulative_stochastic_reward_policy,
+
+            mlflow.log_metrics(
+                {
+                    "stochastic_regret": stochastic_regret,
+                    "expected_regret": expected_regret,
+                    "played_action": played_action,
+                    "obtained_reward": obtained_reward,
+                    "obtained_stochastic_reward": obtained_stochastic_reward * 1,
+                    "optimal_action": optimal_action,
+                    "optimal_reward": optimal_reward,
+                    "stochastic_reward": stochastic_reward * 1,
+                    "cumulative_stochastic_reward_policy": self.cumulative_stochastic_reward_policy,
+                    "cumulative_stochastic_reward_oracle": self.cumulative_stochastic_reward_oracle,
+                    "cumulative_expected_reward_policy": self.cumulative_expected_reward_policy,
+                    "cumulative_expected_reward_oracle": self.cumulative_expected_reward_oracle,
+                },
+                step=self.step,
             )
-            mlflow.log_metric(
-                "cumulative_stochastic_reward_oracle",
-                self.cumulative_stochastic_reward_oracle,
-            )
-            mlflow.log_metric(
-                "cumulative_expected_reward_policy",
-                self.cumulative_expected_reward_policy,
-            )
-            mlflow.log_metric(
-                "cumulative_expected_reward_oracle",
-                self.cumulative_expected_reward_oracle,
-            )
-            mlflow.log_metric("stochastic_regret", stochastic_regret)
-            mlflow.log_metric("expected_regret", expected_regret)
+            self.step += 1
 
     def get_stats(self):
         return f"Average oracle reward {np.mean(self.oracle['rewards']):2.4f} vs policy {np.mean(self.policy['rewards']):2.4f}"
@@ -198,5 +192,5 @@ class Evaluator:
         if display:
             plt.show()
         else:
-            path = self.saving_dir + 'plots/' + self.run_name + '.png'
+            path = self.saving_dir + "plots/" + self.run_name + ".png"
             plt.savefig(path)

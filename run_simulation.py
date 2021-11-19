@@ -304,7 +304,7 @@ if __name__ == "__main__":
     run_ablation_test = True
 
     if not run_ablation_test:
-        # single_context_static_reward_random_policy()
+        single_context_static_reward_random_policy()
         # single_context_static_reward_ucb_policy()
         # single_context_dynamic_reward_ucb_policy()
         # single_context_dynamic_reward_ucb_sw_policy() # ??? why
@@ -312,79 +312,76 @@ if __name__ == "__main__":
         # duble_context_dynamic_reward_ucb_sw_policy()
         # single_context_static_reward_LinUcbPolicy_policy()
         # double_context_static_reward_LinUcbPolicy_policy()
-
-        single_context_static_reward_hmc_policy()
+        # single_context_static_reward_hmc_policy()
     else:
         number_of_observations = 2_000
+
         possible_environments = [
             SyntheticEnvironment(
                 number_of_different_context=1,
                 number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu,
-                name='single_context_static_reward',
+                name="single_context_static_reward",
             ),
-            SyntheticEnvironment(
-                number_of_different_context=2,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu,
-                name='double_context_static_reward',
-            ),
-            SyntheticEnvironment(
-                number_of_different_context=1,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu
-                + np.cos(time / 1_000)
-                + 0.5,
-                name='single_context_dynamic_reward',
-            ),
-            SyntheticEnvironment(
-                number_of_different_context=2,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu
-                + np.cos(time / 1_000)
-                + 0.5,
-                name='double_context_dynamic_reward',
-
-            ),
-            SyntheticEnvironment(
-                number_of_different_context=1,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu
-                + np.cos(time / 500)
-                + 0.5,
-                name='single_context_dynamic_reward_slow',
-
-            ),
-
-            SyntheticEnvironment(
-                number_of_different_context=2,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu
-                + np.cos(time / 500)
-                + 0.5,
-                name='double_context_dynamic_reward_slow',
-
-            ),
+            # SyntheticEnvironment(
+            #     number_of_different_context=2,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu,
+            #     name='double_context_static_reward',
+            # ),
+            # SyntheticEnvironment(
+            #     number_of_different_context=1,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu
+            #     + np.cos(time / 1_000)
+            #     + 0.5,
+            #     name='single_context_dynamic_reward',
+            # ),
+            # SyntheticEnvironment(
+            #     number_of_different_context=2,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu
+            #     + np.cos(time / 1_000)
+            #     + 0.5,
+            #     name='double_context_dynamic_reward',
+            #
+            # ),
+            # SyntheticEnvironment(
+            #     number_of_different_context=1,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu
+            #     + np.cos(time / 500)
+            #     + 0.5,
+            #     name='single_context_dynamic_reward_slow',
+            #
+            # ),
+            #
+            # SyntheticEnvironment(
+            #     number_of_different_context=2,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu
+            #     + np.cos(time / 500)
+            #     + 0.5,
+            #     name='double_context_dynamic_reward_slow',
+            #
+            # ),
         ]
 
         possible_policies = [
             UcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))}),
             UcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))},sw = -200),
-            ThompsonSamplingPolicy(
-                {k: v for k, v in enumerate(np.arange(0, 8, 0.5))}
-            ),
-
-            ThompsonSamplingPolicy(
-                {k: v for k, v in enumerate(np.arange(0, 8, 0.5))}, sw=-200
-            ),
-
-            LinUcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))}, 3, 0.01),
-
+            ThompsonSamplingPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))}),
+            #
+            # ThompsonSamplingPolicy(
+            #     {k: v for k, v in enumerate(np.arange(0, 8, 0.5))}, sw=-200
+            # ),
+            #
+            # LinUcbPolicy({k: v for k, v in enumerate(np.arange(0, 8, 0.5))}, 3, 0.01),
             # MaxEntropyModelFreeDiscrete(
-            #     possible_actions=np.arange(1, 10, 1),
+            #     possible_actions=np.arange(0, 8, 0.5),
             #     alpha_entropy=0.02,
             #     reward_estimator=LimitedRidgeRegressionEstimator(
-            #         alpha_l2=1.0, action_lower_bound=0.0, max_reward=1.0
+            #         alpha_l2=1.0, action_bounds=[0,8], reward_bounds=[0,1],
             #     ),
             #     pretrain_time=10,
             #     pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
@@ -406,7 +403,7 @@ if __name__ == "__main__":
         for policy_base in possible_policies:
             for environment in possible_environments:
                 policy = policy_base.__copy__()
-                print(f'Running {policy.name} - {environment.name}')
+                print(f"Running {policy.name} - {environment.name}")
 
                 evaluator = Evaluator(
                     run_name=f"{policy.name}__{environment.name}",
@@ -416,4 +413,5 @@ if __name__ == "__main__":
                     policy=policy,
                     environment=environment,
                 )
+
                 simulate(environment, policy, evaluator, evaluation_frequency=100)

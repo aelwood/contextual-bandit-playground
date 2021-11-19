@@ -373,7 +373,7 @@ class RidgeRegressionEstimator(RewardEstimatorABC):
         return self.__class__
 
     def __init__(self, alpha_l2=1.0):
-        self.model: Optional[sklm.Ridge] = None
+        self.model: Optional[sklm.Ridge] = None  # DICT OF MODELS
         self.alpha_l2 = alpha_l2
 
     def _prepare_x(self, contexts: Sequence[np.ndarray], actions: Sequence[float]):
@@ -402,6 +402,7 @@ class RidgeRegressionEstimator(RewardEstimatorABC):
         return r[0]
 
     def predict_reward_maintaining_graph(self, action, context: np.ndarray) -> float:
+        # LINEARM MODELS = # ACTION
 
         coef = self.model.coef_
         intercept = self.model.intercept_
@@ -558,11 +559,13 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
 
     def __copy__(self):
         return MaxEntropyModelFreeDiscrete(
-            self.possible_actions,
-            self.reward_estimator,
-            self.alpha_entropy,
-            self.pretrain_time,
-            self.pretrain_policy,
+            **{
+                "possible_actions": self.possible_actions,
+                "reward_estimator": self.reward_estimator,
+                "alpha_entropy": self.alpha_entropy,
+                "pretrain_time": self.pretrain_time,
+                "pretrain_policy": self.pretrain_policy,
+            }
         )
 
     def __deepcopy__(self, memo):
