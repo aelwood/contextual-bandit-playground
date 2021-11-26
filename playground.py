@@ -45,7 +45,27 @@ if __name__ == "__main__":
     # f = lambda reward:  tf.math.minimum(reward_bounds[1],reward)
     # f = lambda reward: np.min([reward_bounds[1], reward])
 
-    f = lambda reward: tf.math.maximum(
+    # f = lambda reward: tf.math.maximum(
+    #                reward_bounds[0],
+    #                tf.math.minimum(
+    #                    reward_bounds[1],
+    #                    reward
+    #                )
+    #            )
+
+    # f= lambda action: (tf.sigmoid((action - action_bounds[1]) * 1000) * -999999 + 1) * \
+    # (tf.sigmoid(-(action - action_bounds[0]) * 1000) * -999999 + 1) * \
+    # tf.math.maximum(
+    #     self.reward_bounds[0],
+    #     tf.math.minimum(
+    #         self.reward_bounds[1],
+    #         super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
+    #             action, context
+    #         )
+    #     )
+    # )
+    f = lambda action, reward: (tf.sigmoid((action - action_bounds[1]) * 1000) * -999999 + 1) +\
+                         (tf.sigmoid(-(action - action_bounds[0]) * 1000)*-999999 + 1)+tf.math.maximum(
                    reward_bounds[0],
                    tf.math.minimum(
                        reward_bounds[1],
@@ -65,7 +85,7 @@ if __name__ == "__main__":
 
 
     rg = np.arange(3,-2,-0.1)
-    plt.plot(rg,[f(tf.convert_to_tensor(x, dtype=tf.float32)) for x in rg], label='sigmoid')
+    plt.plot(rg,[f(tf.convert_to_tensor(x, dtype=tf.float32), tf.convert_to_tensor(x, dtype=tf.float32)) for x in rg], label='sigmoid')
 
     plt.plot(rg,rg, label='input')
 

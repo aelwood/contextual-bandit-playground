@@ -312,9 +312,9 @@ def single_context_static_reward_hmc_policy():
     pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=10))
     policy = MaxEntropyModelFreeContinuousHmc(
         mcmc_initial_state=0.5,
-        alpha_entropy=0.2,
+        alpha_entropy=0.02,
         reward_estimator=reward_estimator,
-        pretrain_time=100,
+        pretrain_time=10,
         pretrain_policy=pretrain_policy,
     )
     evaluator = Evaluator()
@@ -327,7 +327,7 @@ if __name__ == "__main__":
 
     if not run_ablation_test:
         # single_context_static_reward_random_policy()
-        single_context_static_reward_cyclicexploration_policy()
+        # single_context_static_reward_cyclicexploration_policy()
         # single_context_static_reward_ucb_policy()
         # single_context_dynamic_reward_ucb_policy()
         # single_context_dynamic_reward_ucb_sw_policy() # ??? why
@@ -335,7 +335,7 @@ if __name__ == "__main__":
         # duble_context_dynamic_reward_ucb_sw_policy()
         # single_context_static_reward_LinUcbPolicy_policy()
         # double_context_static_reward_LinUcbPolicy_policy()
-        # single_context_static_reward_hmc_policy()
+        single_context_static_reward_hmc_policy()
     else:
         number_of_observations = 500
 

@@ -562,20 +562,8 @@ class RewardLimiterMixin:
         # )
 
         # clip reward to - 999999
-        # FIXME - understand why this is wrong
-        # return (tf.sigmoid((action - self.action_bounds[1]) * 1000) * -999999 + 1) * \
-        #        (tf.sigmoid(-(action - self.action_bounds[0]) * 1000)*-999999 + 1) * \
-        #        tf.math.maximum(
-        #            self.reward_bounds[0],
-        #            tf.math.minimum(
-        #                self.reward_bounds[1],
-        #                super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
-        #                    action, context
-        #                )
-        #            )
-        #        )
-        return ((tf.sigmoid((action-self.action_bounds[0])*100_000) *
-               (1-tf.sigmoid((action-self.action_bounds[1])*100_000)) -1) * 999999 + 1)* \
+        return (tf.sigmoid((action - self.action_bounds[1]) * 1000) * -999999 + 1) + \
+               (tf.sigmoid(-(action - self.action_bounds[0]) * 1000)*-999999 + 1) + \
                tf.math.maximum(
                    self.reward_bounds[0],
                    tf.math.minimum(
@@ -732,21 +720,8 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
 
         alpha = self.alpha_entropy
 
-        # FIXME
-        # r(2.0,context)
-
-        # coef = self.reward_estimator.model.coef_
-        # intercept = self.reward_estimator.model.intercept_
-
         def unnormalized_log_prob(a):
             return r(a, context) / alpha
-            # return (coef[0]*context[0] + coef[1]*context[1] + coef[2]*context[2] + coef[3]*a + intercept) / alpha  # WORKS!!!
-            # return (tf.tensordot(tf.convert_to_tensor(coef, dtype='float32'), tf.concat([context,tf.expand_dims(a,0)], 0), 1) + intercept)/alpha
-
-        # unnormalized_log_prob = self.reward_estimator.get_unnormalized_log_prob(
-        #     context=context,
-        #     alpha_entropy=self.alpha_entropy
-        # )
 
         state = tfp.mcmc.sample_chain(
             num_results=1,
@@ -755,9 +730,6 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
             kernel=self._get_mcmc_kernel(log_prob_function=unnormalized_log_prob),
             trace_fn=None,
         )
-
-        # sample = float(tf.reduce_mean(states, axis=0))
-        # return sample
 
         return float(state)
 
