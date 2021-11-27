@@ -11,7 +11,7 @@ from policies import (
     ThompsonSamplingPolicy,
     MaxEntropyModelFreeContinuousHmc,
     LimitedRidgeRegressionEstimator, LimitedRidgeRegressionEstimatorModelPerArm, CyclicExploration,
-    LimitedLogisticRegressionEstimator,
+    LimitedLogisticRegressionEstimator, LimitedNeuralNetworkRewardEstimator
 )
 
 from scipy.stats import uniform
@@ -322,8 +322,88 @@ def single_context_static_reward_hmc_policy():
     simulate(environment, policy, evaluator, evaluation_frequency=100)
 
 
+def single_context_static_reward_hmc_policy_nn():
+    environment = SyntheticEnvironment(
+        number_of_different_context=1,
+        number_of_observations=200,
+        time_perturbation_function=lambda time, mu: mu,
+    )
+
+    # reward_estimator = RidgeRegressionEstimator(alpha_l2=1.0)
+    reward_estimator = LimitedNeuralNetworkRewardEstimator(
+        action_bounds=(0.0, 10.0),
+        reward_bounds=(0.0, 1.0),
+        layers=[50,50],
+        context_vector_size = 3,
+    )
+    pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=10))
+    policy = MaxEntropyModelFreeContinuousHmc(
+        mcmc_initial_state=0.5,
+        alpha_entropy=0.1,
+        reward_estimator=reward_estimator,
+        pretrain_time=10,
+        pretrain_policy=pretrain_policy,
+    )
+    evaluator = Evaluator()
+
+    simulate(environment, policy, evaluator, evaluation_frequency=100)
+
+
+def single_context_static_reward_model_free_discrete_policy_nn():
+    environment = SyntheticEnvironment(
+        number_of_different_context=1,
+        number_of_observations=200,
+        time_perturbation_function=lambda time, mu: mu,
+    )
+
+    # reward_estimator = RidgeRegressionEstimator(alpha_l2=1.0)
+    reward_estimator = LimitedNeuralNetworkRewardEstimator(
+        action_bounds=(0.0, 10.0),
+        reward_bounds=(0.0, 1.0),
+        layers=[50, 50],
+        context_vector_size=3,
+    )
+    policy=MaxEntropyModelFreeDiscrete(
+        possible_actions= np.arange(0, 10, 1),
+        alpha_entropy=0.02,
+        reward_estimator=reward_estimator,
+        pretrain_time=10,
+        pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+    )
+
+    evaluator = Evaluator()
+
+    simulate(environment, policy, evaluator, evaluation_frequency=100)
+
+
+def double_context_static_reward_model_free_discrete_policy_nn():
+    environment = SyntheticEnvironment(
+        number_of_different_context=2,
+        number_of_observations=200,
+        time_perturbation_function=lambda time, mu: mu,
+    )
+
+    # reward_estimator = RidgeRegressionEstimator(alpha_l2=1.0)
+    reward_estimator = LimitedNeuralNetworkRewardEstimator(
+        action_bounds=(0.0, 10.0),
+        reward_bounds=(0.0, 1.0),
+        layers=[5, 5],
+        context_vector_size=3,
+    )
+    policy=MaxEntropyModelFreeDiscrete(
+        possible_actions= np.arange(0, 10, 1),
+        alpha_entropy=0.02,
+        reward_estimator=reward_estimator,
+        pretrain_time=10,
+        pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+    )
+
+    evaluator = Evaluator()
+
+    simulate(environment, policy, evaluator, evaluation_frequency=100)
+
 if __name__ == "__main__":
-    run_ablation_test = True
+    run_ablation_test = False
 
     if not run_ablation_test:
         # single_context_static_reward_random_policy()
@@ -335,7 +415,10 @@ if __name__ == "__main__":
         # duble_context_dynamic_reward_ucb_sw_policy()
         # single_context_static_reward_LinUcbPolicy_policy()
         # double_context_static_reward_LinUcbPolicy_policy()
-        single_context_static_reward_hmc_policy()
+        # single_context_static_reward_hmc_policy()
+        single_context_static_reward_hmc_policy_nn()
+        # single_context_static_reward_model_free_discrete_policy_nn()
+        # double_context_static_reward_model_free_discrete_policy_nn()
     else:
         number_of_observations = 500
 

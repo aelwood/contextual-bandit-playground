@@ -11,6 +11,8 @@ import scipy
 import sklearn.linear_model as sklm
 import tensorflow as tf
 import tensorflow_probability as tfp
+from tensorflow import keras
+from tensorflow.keras import layers
 
 from scipy.stats import norm
 
@@ -393,16 +395,7 @@ class RewardEstimatorABC(metaclass=abc.ABCMeta):
         pass
 
 
-
-class LinearRegressionEstimatorABC(RewardEstimatorABC):
-    @property
-    def name(self):
-        return self.__class__
-
-    @abc.abstractmethod
-    def get_model(self):
-        pass
-
+class RewardEstimatorWithDataPreparationABC(RewardEstimatorABC, metaclass=abc.ABCMeta):
     def _prepare_x(self, contexts: Sequence[np.ndarray], actions: Sequence[float]):
         # TODO implement robust normalisation of data here?
         return np.concatenate(
@@ -411,6 +404,16 @@ class LinearRegressionEstimatorABC(RewardEstimatorABC):
 
     def _prepare_y(self,y):
         return np.array(y)
+
+
+class LinearRegressionEstimatorABC(RewardEstimatorWithDataPreparationABC):
+    @property
+    def name(self):
+        return self.__class__
+
+    @abc.abstractmethod
+    def get_model(self):
+        pass
 
     def train(
         self,
@@ -586,6 +589,57 @@ class LimitedLogisticRegressionEstimator(RewardLimiterMixin, LogisticRegressionE
 class LimitedRidgeRegressionEstimatorModelPerArm(RewardLimiterMixin,RidgeRegressionEstimatorModelPerArm):
     pass
 
+
+class NeuralNetworkRewardEstimator(RewardEstimatorWithDataPreparationABC):
+    """This is a class that predicts a reward given a context"""
+    def __init__(self, layers: Sequence[int], context_vector_size: int, sigmoid_on_output: bool = True, epochs: int=10, batch_size: int = 2):
+        self.layers = layers
+        self.context_vector_size = context_vector_size
+        self.sigmoid_on_output = sigmoid_on_output
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.model = self._get_model()
+
+    def _get_model(self):
+        inputs = keras.Input(shape=(self.context_vector_size+1,))
+        x = inputs
+        for l in self.layers:
+            x = layers.Dense(l, activation='relu')(x)
+        if self.sigmoid_on_output:
+            output = layers.Dense(1, activation="sigmoid")(x)
+        else:
+            output = layers.Dense(1, activation=None)(x)
+
+        model=keras.Model(inputs=inputs, outputs=output)
+        model.compile(optimizer='adam', loss='binary_crossentropy')
+        return model
+
+    def train(
+        self,
+        past_contexts: Sequence[np.ndarray],
+        past_rewards: Sequence[float],
+        past_actions: Sequence[float],
+    ):
+
+        X = self._prepare_x(past_contexts, past_actions)
+        y = self._prepare_y(past_rewards)
+        history = self.model.fit(X, y, batch_size=self.batch_size, epochs=self.epochs)
+
+    def predict_reward(self, action, context: np.ndarray) -> float:
+        X = self._prepare_x([context], [action])
+        r = self.model.predict(X)
+        return r[0][0]
+
+    def predict_reward_maintaining_graph(self, action, context: np.ndarray) -> float:
+
+        input_data =  tf.concat([context, tf.expand_dims(action, 0)],0)
+        input_data = tf.reshape(input_data, shape=(1,-1))
+        processed_data = self.model(input_data)
+
+        return tf.squeeze(processed_data)
+
+class LimitedNeuralNetworkRewardEstimator(RewardLimiterMixin, NeuralNetworkRewardEstimator):
+    pass
 
 class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
     def __init__(
