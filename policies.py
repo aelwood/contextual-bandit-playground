@@ -170,7 +170,11 @@ class UcbPolicy(MABPolicyABC):
     """
 
     def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
-        self.name = "UCB1"
+        if sw == 0:
+            self.name = "UCB1"
+        else:
+            self.name = f"UCB1_SW_{np.abs(sw)}"
+
         super(UcbPolicy, self).__init__(arm_values, epsilon, sw)
 
     def __copy__(self):
@@ -209,7 +213,12 @@ class UcbPolicy(MABPolicyABC):
 
 class ThompsonSamplingPolicy(MABPolicyABC):
     def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
-        self.name = "TS"
+        self.name = ""
+        if sw == 0:
+            self.name = "TS"
+        else:
+            self.name = f"TS_SW_{np.abs(sw)}"
+
         super(ThompsonSamplingPolicy, self).__init__(arm_values, epsilon, sw)
 
     def __copy__(self):
@@ -286,7 +295,7 @@ class LinUcbDisjointArm:
 
 class LinUcbPolicy(PolicyABC):
     def __init__(self, arm_values: Dict[int, float], n_contex_features, alpha, sw=0):
-        self.name = "LINUCB"
+        self.name = f"LINUCB_a_{str(alpha).replace('.','')}"
         self.arm_values = arm_values
         self.values_arm = {v: k for k, v in arm_values.items()}
         self.alpha = alpha

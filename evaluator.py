@@ -1,21 +1,24 @@
 from __future__ import annotations
+
+import pathlib
 import pickle
 import typing
 import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
+from pathlib import Path
 
 if typing.TYPE_CHECKING:
     from typing import Any, Iterable, NamedTuple, Optional, Sequence, Type, Union
 
 
-def save_obj(obj, name):
-    with open(name + ".pkl", "wb") as f:
+def save_obj(obj, name:pathlib.Path):
+    with open(name, "wb") as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
 
-def load_obj(name):
-    with open(name + ".pkl", "rb") as f:
+def load_obj(name:pathlib.Path):
+    with open(name, "rb") as f:
         return pickle.load(f)
 
 
@@ -29,6 +32,7 @@ class Evaluator:
         use_mlflow=None,
         policy=None,
         environment=None,
+        experiment_name=None,
     ):
         self.oracle = {"actions": [], "rewards": [], "stochastic_reward": []}
         self.policy = {"actions": [], "rewards": [], "stochastic_reward": []}
@@ -38,12 +42,24 @@ class Evaluator:
         else:
             self.run_name = str(np.datetime64("now")).replace(":", "-")
 
+
         self.save_data = save_data
         self.plot_data = plot_data
-        self.saving_dir = saving_dir
+        self.saving_dir = Path(saving_dir)
         self.use_mlflow = use_mlflow
         self.active_policy = policy
         self.active_environment = environment
+        self.experiment_name=experiment_name
+
+        # Init path if not exist
+        if not self.saving_dir.exists():
+            print(f'Folder {self.saving_dir.as_posix()} does not exist, creating it')
+            self.saving_dir.mkdir()
+            (self.saving_dir / 'plots').mkdir(exist_ok=True)
+            (self.saving_dir / 'dump').mkdir(exist_ok=True)
+
+
+
 
         if self.use_mlflow:
             self.cumulative_stochastic_reward_policy = 0.0
@@ -53,6 +69,7 @@ class Evaluator:
             self.step = 0
 
             mlflow.start_run(run_name=self.run_name)
+            mlflow.set_experiment(experiment_name=self.experiment_name)
 
             # logs params shall call policy and env params
 
@@ -78,7 +95,8 @@ class Evaluator:
 
     def save(self):
         file_to_save = {"oracle": self.oracle, "policy": self.policy}
-        path = self.saving_dir + "dump/" + self.run_name
+        path = (self.saving_dir / 'dump' / self.experiment_name / self.run_name).with_suffix('.pkl')
+        path.parents[0].mkdir(exist_ok=True)
         save_obj(file_to_save, path)
         print(f"File saved to {path}")
 
@@ -192,5 +210,6 @@ class Evaluator:
         if display:
             plt.show()
         else:
-            path = self.saving_dir + "plots/" + self.run_name + ".png"
+            path = (self.saving_dir / 'plots' / self.experiment_name / self.run_name).with_suffix('.png')
+            path.parents[0].mkdir(exist_ok=True)
             plt.savefig(path)
