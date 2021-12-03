@@ -38,6 +38,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         time_perturbation_function,
         fixed_variances=0.6,
         n_context_features=3,
+        environment_best_action_offset=0,
         name="default",
     ):
         """
@@ -79,7 +80,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
 
         # Generate reward functions
         self.context_reward_parameters = {
-            context_id: {"mu": context_id * 4 + 1, "sigma": fixed_variances[context_id]}
+            context_id: {"mu": context_id * 4 + 1 + environment_best_action_offset, "sigma": fixed_variances[context_id]}
             for context_id in range(number_of_different_context)
         }
 
