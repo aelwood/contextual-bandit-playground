@@ -82,7 +82,7 @@ class RandomPolicy(PolicyABC):
 
 
 class CyclicExploration(PolicyABC):
-    def __init__(self, arm_values:  Sequence[float]):
+    def __init__(self, arm_values: Sequence[float]):
         self.name = "CyclicExploration"
         self.arm_values = arm_values
         self.last_called_item = 0
@@ -100,12 +100,13 @@ class CyclicExploration(PolicyABC):
         pass
 
     def get_action(self, context):
-        item_to_return = self.arm_values[self.last_called_item%len(self.arm_values)]
+        item_to_return = self.arm_values[self.last_called_item % len(self.arm_values)]
         self.last_called_item += 1
         return item_to_return
 
     def get_params(self):
         return None
+
 
 class MABPolicyABC(PolicyABC):
     def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
@@ -403,6 +404,11 @@ class RewardEstimatorABC(metaclass=abc.ABCMeta):
     def predict_reward_maintaining_graph(self, action, context: np.ndarray) -> float:
         pass
 
+    @property
+    def name(self):
+        return self.__class__
+
+
 
 class RewardEstimatorWithDataPreparationABC(RewardEstimatorABC, metaclass=abc.ABCMeta):
     def _prepare_x(self, contexts: Sequence[np.ndarray], actions: Sequence[float]):
@@ -411,7 +417,7 @@ class RewardEstimatorWithDataPreparationABC(RewardEstimatorABC, metaclass=abc.AB
             [np.array(contexts), np.array(actions).reshape(-1, 1)], axis=1
         )
 
-    def _prepare_y(self,y):
+    def _prepare_y(self, y):
         return np.array(y)
 
 
@@ -473,14 +479,15 @@ class LogisticRegressionEstimator(LinearRegressionEstimatorABC):
     def get_model(self):
         return sklm.LogisticRegression()
 
-    def _prepare_y(self,y):
+    def _prepare_y(self, y):
         return np.array(y)
+
 
 class RidgeRegressionEstimatorModelPerArm(RidgeRegressionEstimator):
     def __init__(self, actions, **kwargs):
         self.actions = actions
         self.model: Optional[Dict[int, sklm.Ridge]] = None
-        super(RidgeRegressionEstimatorModelPerArm,self).__init__(**kwargs)
+        super(RidgeRegressionEstimatorModelPerArm, self).__init__(**kwargs)
 
     def train(
         self,
@@ -490,13 +497,13 @@ class RidgeRegressionEstimatorModelPerArm(RidgeRegressionEstimator):
     ):
         model_dict = {}
         for action in self.actions:
-            X = np.array(past_contexts)[past_actions==action]
-            y = np.array(past_rewards)[past_actions==action]
+            X = np.array(past_contexts)[past_actions == action]
+            y = np.array(past_rewards)[past_actions == action]
             model = sklm.Ridge(alpha=self.alpha_l2)
             model.fit(X, y)
-            model_dict[action]=model
+            model_dict[action] = model
 
-        self.model=model_dict
+        self.model = model_dict
 
     def predict_reward(self, action, context: np.ndarray) -> float:
         assert (
@@ -515,7 +522,7 @@ class RidgeRegressionEstimatorModelPerArm(RidgeRegressionEstimator):
         return (
             tf.tensordot(
                 tf.convert_to_tensor(coef, dtype="float32"),
-               context,
+                context,
                 1,
             )
             + intercept
@@ -529,7 +536,7 @@ class RewardLimiterMixin:
         action_bounds: Tuple[float, float],
         reward_bounds: Tuple[Optional[float], Optional[float]],
         force_negative: bool = False,
-        **kwargs
+        **kwargs,
     ):
         self.action_bounds = action_bounds
         self.reward_bounds = reward_bounds
@@ -574,34 +581,48 @@ class RewardLimiterMixin:
         # )
 
         # clip reward to - 999999
-        return (tf.sigmoid((action - self.action_bounds[1]) * 1000) * -999999 + 1) + \
-               (tf.sigmoid(-(action - self.action_bounds[0]) * 1000)*-999999 + 1) + \
-               tf.math.maximum(
-                   self.reward_bounds[0],
-                   tf.math.minimum(
-                       self.reward_bounds[1],
-                       super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
-                           action, context
-                       )
-                   )
-               )
+        return (
+            (tf.sigmoid((action - self.action_bounds[1]) * 1000) * -999999 + 1)
+            + (tf.sigmoid(-(action - self.action_bounds[0]) * 1000) * -999999 + 1)
+            + tf.math.maximum(
+                self.reward_bounds[0],
+                tf.math.minimum(
+                    self.reward_bounds[1],
+                    super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
+                        action, context
+                    ),
+                ),
+            )
+        )
 
 
 class LimitedRidgeRegressionEstimator(RewardLimiterMixin, RidgeRegressionEstimator):
     pass
 
 
-class LimitedLogisticRegressionEstimator(RewardLimiterMixin, LogisticRegressionEstimator):
+class LimitedLogisticRegressionEstimator(
+    RewardLimiterMixin, LogisticRegressionEstimator
+):
     pass
 
 
-class LimitedRidgeRegressionEstimatorModelPerArm(RewardLimiterMixin,RidgeRegressionEstimatorModelPerArm):
+class LimitedRidgeRegressionEstimatorModelPerArm(
+    RewardLimiterMixin, RidgeRegressionEstimatorModelPerArm
+):
     pass
 
 
 class NeuralNetworkRewardEstimator(RewardEstimatorWithDataPreparationABC):
     """This is a class that predicts a reward given a context"""
-    def __init__(self, layers: Sequence[int], context_vector_size: int, sigmoid_on_output: bool = True, epochs: int=10, batch_size: int = 2):
+
+    def __init__(
+        self,
+        layers: Sequence[int],
+        context_vector_size: int,
+        sigmoid_on_output: bool = True,
+        epochs: int = 10,
+        batch_size: int = 2,
+    ):
         self.layers = layers
         self.context_vector_size = context_vector_size
         self.sigmoid_on_output = sigmoid_on_output
@@ -610,17 +631,17 @@ class NeuralNetworkRewardEstimator(RewardEstimatorWithDataPreparationABC):
         self.model = self._get_model()
 
     def _get_model(self):
-        inputs = keras.Input(shape=(self.context_vector_size+1,))
+        inputs = keras.Input(shape=(self.context_vector_size + 1,))
         x = inputs
         for l in self.layers:
-            x = layers.Dense(l, activation='relu')(x)
+            x = layers.Dense(l, activation="relu")(x)
         if self.sigmoid_on_output:
             output = layers.Dense(1, activation="sigmoid")(x)
         else:
             output = layers.Dense(1, activation=None)(x)
 
-        model=keras.Model(inputs=inputs, outputs=output)
-        model.compile(optimizer='adam', loss='binary_crossentropy')
+        model = keras.Model(inputs=inputs, outputs=output)
+        model.compile(optimizer="adam", loss="binary_crossentropy")
         return model
 
     def train(
@@ -641,14 +662,18 @@ class NeuralNetworkRewardEstimator(RewardEstimatorWithDataPreparationABC):
 
     def predict_reward_maintaining_graph(self, action, context: np.ndarray) -> float:
 
-        input_data =  tf.concat([context, tf.expand_dims(action, 0)],0)
-        input_data = tf.reshape(input_data, shape=(1,-1))
+        input_data = tf.concat([context, tf.expand_dims(action, 0)], 0)
+        input_data = tf.reshape(input_data, shape=(1, -1))
         processed_data = self.model(input_data)
 
         return tf.squeeze(processed_data)
 
-class LimitedNeuralNetworkRewardEstimator(RewardLimiterMixin, NeuralNetworkRewardEstimator):
+
+class LimitedNeuralNetworkRewardEstimator(
+    RewardLimiterMixin, NeuralNetworkRewardEstimator
+):
     pass
+
 
 class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
     def __init__(
@@ -680,7 +705,7 @@ class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
     def train(self):
         if self.pretrain_counter < self.pretrain_time:
             self.pretrain_policy.train()
-        else: #TODO: Ask Adam if it is ok for him
+        else:  # TODO: Ask Adam if it is ok for him
             self.reward_estimator.train(
                 self.past_contexts, self.past_rewards, self.past_actions
             )
@@ -715,7 +740,13 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
     """This is equivalent to the method described in  Contextual bandit Shannon Entropy exploration:
     http://ras.papercept.net/images/temp/IROS/files/1465.pdf"""
 
-    def __init__(self, *, possible_actions: Sequence[float], name='MaxEntropyModelFreeDiscrete', **kwargs):
+    def __init__(
+        self,
+        *,
+        possible_actions: Sequence[float],
+        name="MaxEntropyModelFreeDiscrete",
+        **kwargs,
+    ):
         self.name = name
         self.possible_actions = possible_actions
         super(MaxEntropyModelFreeDiscrete, self).__init__(**kwargs)
@@ -724,7 +755,7 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
         return MaxEntropyModelFreeDiscrete(
             **{
                 "possible_actions": self.possible_actions,
-                "name":self.name,
+                "name": self.name,
                 "reward_estimator": self.reward_estimator,
                 "alpha_entropy": self.alpha_entropy,
                 "pretrain_time": self.pretrain_time,
@@ -804,11 +835,13 @@ class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):
 
     def __copy__(self):
         return MaxEntropyModelFreeContinuousHmc(
-            **{"mcmc_initial_state":self.mcmc_initial_state,
-            "reward_estimator":self.reward_estimator,
-            "alpha_entropy":self.alpha_entropy,
-            "pretrain_time":self.pretrain_time,
-            "pretrain_policy":self.pretrain_policy,}
+            **{
+                "mcmc_initial_state": self.mcmc_initial_state,
+                "reward_estimator": self.reward_estimator,
+                "alpha_entropy": self.alpha_entropy,
+                "pretrain_time": self.pretrain_time,
+                "pretrain_policy": self.pretrain_policy,
+            }
         )
 
     def __deepcopy__(self, memo):
