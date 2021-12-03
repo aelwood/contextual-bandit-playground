@@ -794,8 +794,11 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
 
 
 class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABCMeta):
-    def __init__(self, *, mcmc_initial_state: float, **kwargs):
+    def __init__(self, *, mcmc_initial_state: float,
+                 name="MaxEntropyModelFreeContinuous",
+                 **kwargs):
         self.mcmc_initial_state = mcmc_initial_state
+        self.name=name
         super(MaxEntropyModelFreeContinuousABC, self).__init__(**kwargs)
 
     def get_params(self):
