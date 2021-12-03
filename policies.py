@@ -582,12 +582,12 @@ class RewardLimiterMixin:
 
         # clip reward to - 999999
         return (
-            (tf.sigmoid((action - self.action_bounds[1]) * 1000) * -999999 + 1)
-            + (tf.sigmoid(-(action - self.action_bounds[0]) * 1000) * -999999 + 1)
+            (tf.sigmoid(float(action - self.action_bounds[1]) * 1000.) * -999999 + 1)
+            + (tf.sigmoid(-1.0*(action - self.action_bounds[0]) * 1000.) * -999999 + 1)
             + tf.math.maximum(
-                self.reward_bounds[0],
+                float(self.reward_bounds[0]),
                 tf.math.minimum(
-                    self.reward_bounds[1],
+                    float(self.reward_bounds[1]),
                     super(RewardLimiterMixin, self).predict_reward_maintaining_graph(
                         action, context
                     ),
