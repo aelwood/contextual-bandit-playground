@@ -513,12 +513,12 @@ if __name__ == "__main__":
         default_steps_before_retraining_nn = 10
 
         possible_policies = [
-            UcbPolicy({k: v for k, v in enumerate(default_actions_range)}),
-            UcbPolicy({k: v for k, v in enumerate(default_actions_range)}, sw=-200),
-            ThompsonSamplingPolicy({k: v for k, v in enumerate(default_actions_range)}),
-            ThompsonSamplingPolicy(
-                {k: v for k, v in enumerate(default_actions_range)}, sw=-200
-            ),
+            # UcbPolicy({k: v for k, v in enumerate(default_actions_range)}),
+            # UcbPolicy({k: v for k, v in enumerate(default_actions_range)}, sw=-200),
+            # ThompsonSamplingPolicy({k: v for k, v in enumerate(default_actions_range)}),
+            # ThompsonSamplingPolicy(
+            #     {k: v for k, v in enumerate(default_actions_range)}, sw=-200
+            # ),
         ]
 
         for alpha in [0.2, 0.1, 0.05, 0.02]:
@@ -574,10 +574,11 @@ if __name__ == "__main__":
                 possible_policies.append(
                     MaxEntropyModelFreeContinuousHmc(
                         mcmc_initial_state=5.0,
-                        name=f'MEMF_HMC_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
+                        name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}',
                         alpha_entropy=alpha,
                         reward_estimator=LimitedNeuralNetworkRewardEstimator(
-                            action_bounds=[default_actions_range[0], default_actions_range[-1]],
+                            #action_bounds=[default_actions_range[0], default_actions_range[-1]],
+                            action_bounds=[1.0,10.0],
                             reward_bounds=(0.0, 1.0),
                             layers=nn_layers,
                             context_vector_size=3,

@@ -844,6 +844,7 @@ class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):
                 "alpha_entropy": self.alpha_entropy,
                 "pretrain_time": self.pretrain_time,
                 "pretrain_policy": self.pretrain_policy,
+                "name": self.name,
             }
         )
 
@@ -855,6 +856,7 @@ class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):
                 self.alpha_entropy,
                 self.pretrain_time,
                 self.pretrain_policy,
+                self.name,
                 memo,
             )
         )
