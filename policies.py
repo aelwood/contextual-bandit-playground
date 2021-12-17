@@ -409,7 +409,6 @@ class RewardEstimatorABC(metaclass=abc.ABCMeta):
         return self.__class__
 
 
-
 class RewardEstimatorWithDataPreparationABC(RewardEstimatorABC, metaclass=abc.ABCMeta):
     def _prepare_x(self, contexts: Sequence[np.ndarray], actions: Sequence[float]):
         # TODO implement robust normalisation of data here?
@@ -582,8 +581,11 @@ class RewardLimiterMixin:
 
         # clip reward to - 999999
         return (
-            (tf.sigmoid(float(action - self.action_bounds[1]) * 1000.) * -999999 + 1)
-            + (tf.sigmoid(-1.0*(action - self.action_bounds[0]) * 1000.) * -999999 + 1)
+            (tf.sigmoid(float(action - self.action_bounds[1]) * 1000.0) * -999999 + 1)
+            + (
+                tf.sigmoid(-1.0 * (action - self.action_bounds[0]) * 1000.0) * -999999
+                + 1
+            )
             + tf.math.maximum(
                 float(self.reward_bounds[0]),
                 tf.math.minimum(
@@ -653,7 +655,17 @@ class NeuralNetworkRewardEstimator(RewardEstimatorWithDataPreparationABC):
 
         X = self._prepare_x(past_contexts, past_actions)
         y = self._prepare_y(past_rewards)
-        history = self.model.fit(X, y, batch_size=self.batch_size, epochs=self.epochs)
+        history = self.model.fit(
+            X,
+            y,
+            batch_size=self.batch_size,
+            epochs=self.epochs,
+            verbose=0,
+            sample_weight=self.get_training_weights(past_actions),
+        )
+
+    def get_training_weights(self, past_actions):
+        return None
 
     def predict_reward(self, action, context: np.ndarray) -> float:
         X = self._prepare_x([context], [action])
@@ -669,8 +681,37 @@ class NeuralNetworkRewardEstimator(RewardEstimatorWithDataPreparationABC):
         return tf.squeeze(processed_data)
 
 
+class OverrideGetTrainingWeightsSigmoid:
+    def get_training_weights(self, past_actions):
+        short_term_mem = 200
+        long_term_mem = 100
+        short_term_mem = min(short_term_mem, len(past_actions))
+        long_term_mem = max(min(long_term_mem, len(past_actions) - short_term_mem), 0)
+
+        memory = short_term_mem + long_term_mem
+
+        starting_point = len(past_actions) - memory
+        if long_term_mem > 0:
+            q = 1 / long_term_mem
+            a = len(past_actions) - long_term_mem - short_term_mem
+            b = len(past_actions) - short_term_mem
+            custom_sigmoid = lambda x: 1 / (
+                1 + np.exp((q * 4) * (-x + a + (b - a) / 2))
+            )
+            weights = custom_sigmoid(np.arange(1, len(past_actions) + 1))
+        else:
+            weights = np.array([1.0] * len(past_actions))
+        return weights
+
+
 class LimitedNeuralNetworkRewardEstimator(
     RewardLimiterMixin, NeuralNetworkRewardEstimator
+):
+    pass
+
+
+class LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
+    RewardLimiterMixin, OverrideGetTrainingWeightsSigmoid, NeuralNetworkRewardEstimator
 ):
     pass
 
@@ -794,11 +835,15 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
 
 
 class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABCMeta):
-    def __init__(self, *, mcmc_initial_state: float,
-                 name="MaxEntropyModelFreeContinuous",
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        mcmc_initial_state: float,
+        name="MaxEntropyModelFreeContinuous",
+        **kwargs,
+    ):
         self.mcmc_initial_state = mcmc_initial_state
-        self.name=name
+        self.name = name
         super(MaxEntropyModelFreeContinuousABC, self).__init__(**kwargs)
 
     def get_params(self):

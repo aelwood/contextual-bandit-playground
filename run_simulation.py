@@ -15,17 +15,21 @@ from policies import (
     CyclicExploration,
     LimitedLogisticRegressionEstimator,
     LimitedNeuralNetworkRewardEstimator,
+    LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid,
 )
 
 import tensorflow as tf
-physical_devices = tf.config.list_physical_devices('GPU')
+
+physical_devices = tf.config.list_physical_devices("GPU")
 for device in physical_devices:
     tf.config.experimental.set_memory_growth(device, True)
 
 from scipy.stats import uniform
 
 
-def simulate(environment, policy, evaluator, evaluation_frequency=100, steps_to_train=1):
+def simulate(
+    environment, policy, evaluator, evaluation_frequency=100, steps_to_train=1
+):
     evaluation_frequency = evaluation_frequency
     for i, c in enumerate(environment.generate_contexts()):
         a = policy.get_action(c)
@@ -35,7 +39,7 @@ def simulate(environment, policy, evaluator, evaluation_frequency=100, steps_to_
         optimal_r, optimal_a, stochastic_r = environment.get_best_reward_action(c)
 
         evaluator.notify(a, r, s_r, optimal_a, optimal_r, stochastic_r)
-        if i % steps_to_train==0:
+        if i % steps_to_train == 0:
             policy.train()
 
         if i % evaluation_frequency == 0 and i > 0:
@@ -411,8 +415,47 @@ def double_context_static_reward_model_free_discrete_policy_nn():
     simulate(environment, policy, evaluator, evaluation_frequency=100)
 
 
+def tes_MaxEntropyModelFreeContinuousHmc():
+    environment = SyntheticEnvironment(
+        number_of_different_context=2,
+        number_of_observations=2000,
+        time_perturbation_function=lambda time, mu: mu + np.cos(time / 200) + 0.5,
+        name="2c_dm_fst",
+    )
+
+    nn_layers = [50]
+    alpha = 0.05
+
+    policy = MaxEntropyModelFreeContinuousHmc(
+        mcmc_initial_state=5.0,
+        name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}_SIGMOID_WEIGHT',
+        alpha_entropy=alpha,
+        reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
+            action_bounds=[1.0, 10.0],
+            reward_bounds=(0.0, 1.0),
+            layers=nn_layers,
+            context_vector_size=3,
+        ),
+        pretrain_time=10,
+        pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+    )
+
+    evaluator = Evaluator(
+        run_name=f"{policy.name}_TEST0",
+        save_data=True,
+        plot_data=False,
+        use_mlflow=True,
+        policy=policy,
+        environment=environment,
+        experiment_name=environment.name,
+    )
+    simulate(
+        environment, policy, evaluator, evaluation_frequency=100, steps_to_train=10
+    )
+
+
 if __name__ == "__main__":
-    run_ablation_test = True
+    run_ablation_test = False
 
     if not run_ablation_test:
         # single_context_static_reward_random_policy()
@@ -422,12 +465,13 @@ if __name__ == "__main__":
         # single_context_dynamic_reward_ucb_sw_policy() # ??? why
         # duouble_context_static_reward_ucb_policy()
         # duble_context_dynamic_reward_ucb_sw_policy()
-        single_context_static_reward_LinUcbPolicy_policy()
+        # single_context_static_reward_LinUcbPolicy_policy()
         # double_context_static_reward_LinUcbPolicy_policy()
         # single_context_static_reward_hmc_policy()
         # single_context_static_reward_hmc_policy_nn()
         # single_context_static_reward_model_free_discrete_policy_nn()
         # double_context_static_reward_model_free_discrete_policy_nn()
+        tes_MaxEntropyModelFreeContinuousHmc()
     else:
         number_of_observations = 2_000
         possible_environments = [
@@ -443,19 +487,18 @@ if __name__ == "__main__":
                 time_perturbation_function=lambda time, mu: mu,
                 name="2c_st",
             ),
-
             SyntheticEnvironment(
                 number_of_different_context=1,
                 number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu,
-                environment_best_action_offset = 0.2,
+                environment_best_action_offset=0.2,
                 name="1c_st_offset",
             ),
             SyntheticEnvironment(
                 number_of_different_context=2,
                 number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu,
-                environment_best_action_offset = 0.2,
+                environment_best_action_offset=0.2,
                 name="2c_st_offset",
             ),
             SyntheticEnvironment(
@@ -490,21 +533,20 @@ if __name__ == "__main__":
                 + 0.5,
                 name="2c_dm",
             ),
-
             SyntheticEnvironment(
                 number_of_different_context=1,
                 number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu
-                                                            + np.cos(time / 200)
-                                                            + 0.5,
+                + np.cos(time / 200)
+                + 0.5,
                 name="1c_dm_fst",
             ),
             SyntheticEnvironment(
                 number_of_different_context=2,
                 number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu
-                                                            + np.cos(time / 200)
-                                                            + 0.5,
+                + np.cos(time / 200)
+                + 0.5,
                 name="2c_dm_fst",
             ),
         ]
@@ -523,7 +565,9 @@ if __name__ == "__main__":
 
         for alpha in [0.2, 0.1, 0.05, 0.02]:
             possible_policies.append(
-                LinUcbPolicy({k: v for k, v in enumerate(default_actions_range)}, 3, alpha),
+                LinUcbPolicy(
+                    {k: v for k, v in enumerate(default_actions_range)}, 3, alpha
+                ),
             )
             possible_policies.append(
                 MaxEntropyModelFreeDiscrete(
@@ -532,7 +576,10 @@ if __name__ == "__main__":
                     alpha_entropy=alpha,
                     reward_estimator=LimitedRidgeRegressionEstimator(
                         alpha_l2=1.0,
-                        action_bounds=[default_actions_range[0], default_actions_range[-1]],
+                        action_bounds=[
+                            default_actions_range[0],
+                            default_actions_range[-1],
+                        ],
                         reward_bounds=[0, 1],
                     ),
                     pretrain_time=10,
@@ -548,28 +595,35 @@ if __name__ == "__main__":
                     reward_estimator=LimitedRidgeRegressionEstimatorModelPerArm(
                         actions=default_actions_range,
                         alpha_l2=1.0,
-                        action_bounds=[default_actions_range[0], default_actions_range[-1]],
+                        action_bounds=[
+                            default_actions_range[0],
+                            default_actions_range[-1],
+                        ],
                         reward_bounds=[0, 1],
                     ),
                     pretrain_time=10,
                     pretrain_policy=CyclicExploration(default_actions_range),
                 )
             )
-            for nn_layers in [[10], [10,10], [50], [50,50]]:
+            for nn_layers in [[10], [10, 10], [50], [50, 50]]:
                 possible_policies.append(
                     MaxEntropyModelFreeDiscrete(
                         possible_actions=default_actions_range,
                         name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
                         alpha_entropy=alpha,
                         reward_estimator=LimitedNeuralNetworkRewardEstimator(
-                            action_bounds=[default_actions_range[0], default_actions_range[-1]],
+                            action_bounds=[
+                                default_actions_range[0],
+                                default_actions_range[-1],
+                            ],
                             reward_bounds=(0.0, 1.0),
                             layers=nn_layers,
                             context_vector_size=3,
                         ),
                         pretrain_time=10,
                         pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
-                    ))
+                    )
+                )
 
                 possible_policies.append(
                     MaxEntropyModelFreeContinuousHmc(
@@ -577,8 +631,8 @@ if __name__ == "__main__":
                         name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}',
                         alpha_entropy=alpha,
                         reward_estimator=LimitedNeuralNetworkRewardEstimator(
-                            #action_bounds=[default_actions_range[0], default_actions_range[-1]],
-                            action_bounds=[1.0,10.0],
+                            # action_bounds=[default_actions_range[0], default_actions_range[-1]],
+                            action_bounds=[1.0, 10.0],
                             reward_bounds=(0.0, 1.0),
                             layers=nn_layers,
                             context_vector_size=3,
@@ -592,36 +646,28 @@ if __name__ == "__main__":
         # for alpha in [0.2, 0.1, 0.05, 0.02]:
         #
 
-
-
-
-
-
-
-
-
-            # MaxEntropyModelFreeDiscrete(
-            #     possible_actions=default_actions_range,
-            #     name='MaxEntropyModelFreeDiscreteLOGISTIC',
-            #     alpha_entropy=0.02,
-            #     reward_estimator=LimitedLogisticRegressionEstimator(
-            #         action_bounds=[0, 8], reward_bounds=[0, 1],
-            #     ),
-            #     pretrain_time=10,
-            #     pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
-            # ),
-            # MaxEntropyModelFreeContinuousHmc(
-            #     mcmc_initial_state=0.5,
-            #     alpha_entropy=0.2,
-            #     reward_estimator=LimitedRidgeRegressionEstimator(
-            #     alpha_l2=1.0,
-            #     action_bounds=(0.0, 10.0),
-            #     reward_bounds=(0.0, 1.0),
-            #     force_negative=False,
-            # ),
-            #     pretrain_time=100,
-            #     pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
-            # ),
+        # MaxEntropyModelFreeDiscrete(
+        #     possible_actions=default_actions_range,
+        #     name='MaxEntropyModelFreeDiscreteLOGISTIC',
+        #     alpha_entropy=0.02,
+        #     reward_estimator=LimitedLogisticRegressionEstimator(
+        #         action_bounds=[0, 8], reward_bounds=[0, 1],
+        #     ),
+        #     pretrain_time=10,
+        #     pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+        # ),
+        # MaxEntropyModelFreeContinuousHmc(
+        #     mcmc_initial_state=0.5,
+        #     alpha_entropy=0.2,
+        #     reward_estimator=LimitedRidgeRegressionEstimator(
+        #     alpha_l2=1.0,
+        #     action_bounds=(0.0, 10.0),
+        #     reward_bounds=(0.0, 1.0),
+        #     force_negative=False,
+        # ),
+        #     pretrain_time=100,
+        #     pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+        # ),
 
         for policy_base in possible_policies:
             for environment in possible_environments:
@@ -640,6 +686,12 @@ if __name__ == "__main__":
 
                 steps_to_train = 1
                 if "NN" in policy.name:
-                    steps_to_train=default_steps_before_retraining_nn
+                    steps_to_train = default_steps_before_retraining_nn
 
-                simulate(environment, policy, evaluator, evaluation_frequency=100, steps_to_train=steps_to_train)
+                simulate(
+                    environment,
+                    policy,
+                    evaluator,
+                    evaluation_frequency=100,
+                    steps_to_train=steps_to_train,
+                )
