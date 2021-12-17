@@ -51,9 +51,9 @@ class PolicyABC(metaclass=abc.ABCMeta):
     def __copy__(self):
         pass
 
-    @abc.abstractmethod
-    def __deepcopy__(self, memo):
-        pass
+    # @abc.abstractmethod
+    # def __deepcopy__(self, memo):
+    #     pass
 
 
 class RandomPolicy(PolicyABC):
@@ -65,8 +65,8 @@ class RandomPolicy(PolicyABC):
     def __copy__(self):
         return RandomPolicy(self.distribution)
 
-    def __deepcopy__(self, memo):
-        return RandomPolicy(copy.deepcopy(self.distribution, memo))
+    # def __deepcopy__(self, memo):
+    #     return RandomPolicy(copy.deepcopy(self.distribution, memo))
 
     def train(self):
         pass
@@ -363,7 +363,7 @@ class LinUcbPolicy(PolicyABC):
         return arm_value
 
     def train(self):
-        # First we have to re-initialize the arms
+        # First we have to r-initialize the arms
         for arm in self.arms.values():
             arm.init_arms()
 
@@ -681,7 +681,8 @@ class NeuralNetworkRewardEstimator(RewardEstimatorWithDataPreparationABC):
         return tf.squeeze(processed_data)
 
 
-class OverrideGetTrainingWeightsSigmoid:
+class OverrideGetTrainingWeightsSigmoidMixin:
+    # TODO override init
     def get_training_weights(self, past_actions):
         short_term_mem = 200
         long_term_mem = 100
@@ -711,7 +712,9 @@ class LimitedNeuralNetworkRewardEstimator(
 
 
 class LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
-    RewardLimiterMixin, OverrideGetTrainingWeightsSigmoid, NeuralNetworkRewardEstimator
+    RewardLimiterMixin,
+    OverrideGetTrainingWeightsSigmoidMixin,
+    NeuralNetworkRewardEstimator,
 ):
     pass
 
@@ -746,7 +749,7 @@ class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
     def train(self):
         if self.pretrain_counter < self.pretrain_time:
             self.pretrain_policy.train()
-        else:  # TODO: Ask Adam if it is ok for him
+        else:
             self.reward_estimator.train(
                 self.past_contexts, self.past_rewards, self.past_actions
             )
@@ -883,14 +886,15 @@ class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):
 
     def __copy__(self):
         return MaxEntropyModelFreeContinuousHmc(
-            **{
-                "mcmc_initial_state": self.mcmc_initial_state,
-                "reward_estimator": self.reward_estimator,
-                "alpha_entropy": self.alpha_entropy,
-                "pretrain_time": self.pretrain_time,
-                "pretrain_policy": self.pretrain_policy,
-                "name": self.name,
-            }
+            **{k: v for k, v in vars(self).items() if not k.startswith("_")}
+            # **{
+            #     "mcmc_initial_state": self.mcmc_initial_state,
+            #     "reward_estimator": self.reward_estimator,
+            #     "alpha_entropy": self.alpha_entropy,
+            #     "pretrain_time": self.pretrain_time,
+            #     "pretrain_policy": self.pretrain_policy,
+            #     "name": self.name,
+            # }
         )
 
     def __deepcopy__(self, memo):

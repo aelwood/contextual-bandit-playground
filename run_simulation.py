@@ -695,3 +695,14 @@ if __name__ == "__main__":
                     evaluation_frequency=100,
                     steps_to_train=steps_to_train,
                 )
+
+
+# MEMFD_MPA_A01
+# MEMFD_MPA_A002
+#
+# MEMF_NN_10_10_A002
+# MEMF_NN_10_10_A005
+# MEMF_NN_50_50_A01
+#
+# MEMF_HMC_NN_50_50_A005
+# MEMF_HMC_NN_10_A01

@@ -5,7 +5,7 @@ import numpy as np
 import typing
 
 from abc import ABC
-from sklearn.datasets import make_blobs
+from sklearn.datasets import make_blobs, make_moons, make_swiss_roll, make_circles
 from scipy.stats import norm
 
 if typing.TYPE_CHECKING:
@@ -55,12 +55,8 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         self.name = name
 
         # Generate the contexts
-        context_vectors, context_ids = make_blobs(
-            n_samples=number_of_observations,
-            n_features=n_context_features,
-            centers=number_of_different_context,
-            cluster_std=0.4,
-            shuffle=True,
+        context_vectors, context_ids = self._generate_context(
+            number_of_observations, n_context_features, number_of_different_context
         )
 
         # Normalize vectors:
@@ -86,6 +82,18 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
             }
             for context_id in range(number_of_different_context)
         }
+
+    def _generate_context(
+        self, number_of_observations, n_context_features, number_of_different_context
+    ):
+        context_vectors, context_ids = make_blobs(
+            n_samples=number_of_observations,
+            n_features=n_context_features,
+            centers=number_of_different_context,
+            cluster_std=0.4,
+            shuffle=True,
+        )
+        return context_vectors, context_ids
 
     def get_params(self):
         return {
@@ -140,28 +148,89 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         return optimal_r, optimal_a, stochastic_reward
 
 
+# , ,
+# TODO: Moons and circles
+class MoonsContextsMixin:
+    def _generate_context(
+        self, number_of_observations, n_context_features, number_of_different_context
+    ):
+        assert n_context_features == 2, "Context features must be 2"
+        assert (
+            number_of_different_context == 2
+        ), "Number of different contexts must be 2"
+        context_vectors, context_ids = make_moons(
+            n_samples=number_of_observations,
+            shuffle=True,
+        )
+        return context_vectors, context_ids
+
+
+class CirclesContextsMixin:
+    def _generate_context(
+        self, number_of_observations, n_context_features, number_of_different_context
+    ):
+        assert n_context_features == 2, "Context features must be 2"
+        assert (
+            number_of_different_context == 2
+        ), "Number of different contexts must be 2"
+        context_vectors, context_ids = make_circles(
+            n_samples=number_of_observations,
+            shuffle=True,
+        )
+        return context_vectors, context_ids
+
+
+class MoonSyntheticEnvironment(MoonsContextsMixin, SyntheticEnvironment):
+    pass
+
+
+class CirclesSyntheticEnvironment(CirclesContextsMixin, SyntheticEnvironment):
+    pass
+
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    environment = SyntheticEnvironment(
-        number_of_different_context=3,
+    environment = CirclesSyntheticEnvironment(
+        number_of_different_context=2,
+        n_context_features=2,
         number_of_observations=1_000,
-        # time_perturbation_function=lambda time, mu: mu + (time // 100) * 5,
         time_perturbation_function=lambda time, mu: mu + np.cos(time / 500),
     )
-    bests_rewards = []
-    bests_context = []
+    # Plotting the contex space
+    for unique_id in np.unique(environment.context_ids):
+        points = environment.context_vectors[environment.context_ids == unique_id]
+        plt.scatter(points[:, 0], points[:, 1], label=unique_id)
 
-    for i, c in enumerate(environment.generate_contexts()):
-        (
-            best_reward,
-            best_context,
-            stochastic_reward,
-        ) = environment.get_best_reward_action(c)
-        bests_rewards.append(best_reward)
-        bests_context.append(best_context)
-
-    plt.plot(np.arange(len(bests_rewards)), bests_rewards, label="reward")
-    plt.plot(np.arange(len(bests_context)), bests_context, label="context")
-    plt.legend()
     plt.show()
+    1 == 1
+
+    # Plotting the actions
+    # bests_rewards = []
+    # bests_context = []
+    #
+    # for i, c in enumerate(environment.generate_contexts()):
+    #     (
+    #         best_reward,
+    #         best_context,
+    #         stochastic_reward,
+    #     ) = environment.get_best_reward_action(c)
+    #     bests_rewards.append(best_reward)
+    #     bests_context.append(best_context)
+    #
+    # plt.plot(
+    #     np.arange(len(bests_rewards)),
+    #     bests_rewards,
+    #     label="reward",
+    #     linestyle="",
+    #     marker="^",
+    # )
+    # plt.plot(
+    #     np.arange(len(bests_context)),
+    #     bests_context,
+    #     label="context",
+    #     linestyle="",
+    #     marker="^",
+    # )
+    # plt.legend()
+    # plt.show()
