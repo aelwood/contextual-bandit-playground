@@ -1,6 +1,10 @@
 import numpy as np
 
-from environments import SyntheticEnvironment
+from environments import (
+    SyntheticEnvironment,
+    MoonSyntheticEnvironment,
+    CirclesSyntheticEnvironment,
+)
 from evaluator import Evaluator
 from policies import (
     RandomPolicy,
@@ -91,25 +95,25 @@ def tes_MaxEntropyModelFreeContinuousHmc():
 
 
 if __name__ == "__main__":
-    run_ablation_test = False
+    run_ablation_test = True
 
     if not run_ablation_test:
         tes_MaxEntropyModelFreeContinuousHmc()
     else:
-        number_of_observations = 150  # TODO: 2_000
+        number_of_observations = 2_000
         possible_environments = [
-            SyntheticEnvironment(
-                number_of_different_context=1,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu,
-                name="1c_st",
-            ),
-            SyntheticEnvironment(
-                number_of_different_context=2,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu,
-                name="2c_st",
-            ),
+            # SyntheticEnvironment(
+            #     number_of_different_context=1,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu,
+            #     name="1c_st",
+            # ),
+            # SyntheticEnvironment(
+            #     number_of_different_context=2,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu,
+            #     name="2c_st",
+            # ),
             # SyntheticEnvironment(
             #     number_of_different_context=1,
             #     number_of_observations=number_of_observations,
@@ -124,67 +128,150 @@ if __name__ == "__main__":
             #     environment_best_action_offset=0.2,
             #     name="2c_st_offset",
             # ),
-            # SyntheticEnvironment(
-            #     number_of_different_context=1,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu
-            #     + np.cos(time / 1_000)
-            #     + 0.5,
-            #     name="1c_dm_slw",
-            # ),
-            # SyntheticEnvironment(
-            #     number_of_different_context=2,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu
-            #     + np.cos(time / 1_000)
-            #     + 0.5,
-            #     name="2c_dm_slw",
-            # ),
-            # SyntheticEnvironment(
-            #     number_of_different_context=1,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu
-            #     + np.cos(time / 500)
-            #     + 0.5,
-            #     name="1c_dm",
-            # ),
-            # SyntheticEnvironment(
-            #     number_of_different_context=2,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu
-            #     + np.cos(time / 500)
-            #     + 0.5,
-            #     name="2c_dm",
-            # ),
-            # SyntheticEnvironment(
-            #     number_of_different_context=1,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu
-            #     + np.cos(time / 200)
-            #     + 0.5,
-            #     name="1c_dm_fst",
-            # ),
-            # SyntheticEnvironment(
-            #     number_of_different_context=2,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu
-            #     + np.cos(time / 200)
-            #     + 0.5,
-            #     name="2c_dm_fst",
-            # ),
+            SyntheticEnvironment(
+                number_of_different_context=1,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 1_000)
+                + 0.5,
+                name="1c_dm_slw",
+            ),
+            SyntheticEnvironment(
+                number_of_different_context=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 1_000)
+                + 0.5,
+                name="2c_dm_slw",
+            ),
+            SyntheticEnvironment(
+                number_of_different_context=1,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 500)
+                + 0.5,
+                name="1c_dm",
+            ),
+            SyntheticEnvironment(
+                number_of_different_context=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 500)
+                + 0.5,
+                name="2c_dm",
+            ),
+            SyntheticEnvironment(
+                number_of_different_context=1,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 200)
+                + 0.5,
+                name="1c_dm_fst",
+            ),
+            SyntheticEnvironment(
+                number_of_different_context=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 200)
+                + 0.5,
+                name="2c_dm_fst",
+            ),
+
+            # CirclesSyntheticEnvironment
+            # MOOOOOON
+            MoonSyntheticEnvironment(
+                number_of_different_context=2,
+                n_context_features=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 1_000)
+                + 0.5,
+                name="2c_dm_slw_mooo",
+            ),
+            MoonSyntheticEnvironment(
+                number_of_different_context=2,
+                n_context_features=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 500)
+                + 0.5,
+                name="2c_dm_mooo",
+            ),
+            MoonSyntheticEnvironment(
+                number_of_different_context=2,
+                n_context_features=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 200)
+                + 0.5,
+                name="2c_dm_fst_mooo",
+            ),
+            # CIRCLE
+            # CirclesSyntheticEnvironment
+            CirclesSyntheticEnvironment(
+                number_of_different_context=2,
+                n_context_features=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 1_000)
+                + 0.5,
+                name="2c_dm_slw_circ",
+            ),
+            CirclesSyntheticEnvironment(
+                number_of_different_context=2,
+                n_context_features=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 500)
+                + 0.5,
+                name="2c_dm_circ",
+            ),
+            CirclesSyntheticEnvironment(
+                number_of_different_context=2,
+                n_context_features=2,
+                number_of_observations=number_of_observations,
+                time_perturbation_function=lambda time, mu: mu
+                + np.cos(time / 200)
+                + 0.5,
+                name="2c_dm_fst_circ",
+            ),
         ]
 
         default_actions_range = np.arange(1, 10, 1)
         default_steps_before_retraining_nn = 10
 
         possible_policies = [
-            # UcbPolicy({k: v for k, v in enumerate(default_actions_range)}),
-            # UcbPolicy({k: v for k, v in enumerate(default_actions_range)}, sw=-200),
-            # ThompsonSamplingPolicy({k: v for k, v in enumerate(default_actions_range)}),
-            # ThompsonSamplingPolicy(
-            #     {k: v for k, v in enumerate(default_actions_range)}, sw=-200
-            # ),
+            UcbPolicy({k: v for k, v in enumerate(default_actions_range)}),
+            UcbPolicy({k: v for k, v in enumerate(default_actions_range)}, sw=-200),
+            ThompsonSamplingPolicy({k: v for k, v in enumerate(default_actions_range)}),
+            ThompsonSamplingPolicy(
+                {k: v for k, v in enumerate(default_actions_range)}, sw=-200
+            ),
         ]
+
+        for alpha in [0.2, 0.1, 0.05, 0.02]:
+            possible_policies.append(
+                LinUcbPolicy(
+                    {k: v for k, v in enumerate(default_actions_range)}, 3, alpha
+                ),
+            )
+            possible_policies.append(
+                MaxEntropyModelFreeDiscrete(
+                    possible_actions=default_actions_range,
+                    name=f'MEMFD_a{str(alpha).replace(".","")}',
+                    alpha_entropy=alpha,
+                    reward_estimator=LimitedRidgeRegressionEstimator(
+                        alpha_l2=1.0,
+                        action_bounds=[
+                            default_actions_range[0],
+                            default_actions_range[-1],
+                        ],
+                        reward_bounds=[0, 1],
+                    ),
+                    pretrain_time=10,
+                    pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+                )
+            )
 
         # MEMFD_MPA_A002
         possible_policies.append(
@@ -332,7 +419,122 @@ if __name__ == "__main__":
             )
         )
 
-        #####
+        for mem in [200, 300]:
+            # MEMF_NN_10_10_A002
+            nn_layers = [10, 10]
+            alpha = 0.02
+            possible_policies.append(
+                MaxEntropyModelFreeDiscrete(
+                    possible_actions=default_actions_range,
+                    name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}_sig_{mem}',
+                    alpha_entropy=alpha,
+                    reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
+                        short_term_mem=mem,
+                        long_term_mem=mem,
+                        action_bounds=[
+                            default_actions_range[0],
+                            default_actions_range[-1],
+                        ],
+                        reward_bounds=(0.0, 1.0),
+                        layers=nn_layers,
+                        context_vector_size=3,
+                    ),
+                    pretrain_time=10,
+                    pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+                )
+            )
+
+            # MEMF_NN_10_10_A005
+            nn_layers = [10, 10]
+            alpha = 0.05
+            possible_policies.append(
+                MaxEntropyModelFreeDiscrete(
+                    possible_actions=default_actions_range,
+                    name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}_sig_{mem}',
+                    alpha_entropy=alpha,
+                    reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
+                        short_term_mem=mem,
+                        long_term_mem=mem,
+                        action_bounds=[
+                            default_actions_range[0],
+                            default_actions_range[-1],
+                        ],
+                        reward_bounds=(0.0, 1.0),
+                        layers=nn_layers,
+                        context_vector_size=3,
+                    ),
+                    pretrain_time=10,
+                    pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+                )
+            )
+
+            # MEMF_NN_50_50_A01
+            nn_layers = [50, 50]
+            alpha = 0.1
+            possible_policies.append(
+                MaxEntropyModelFreeDiscrete(
+                    possible_actions=default_actions_range,
+                    name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}_sig_{mem}',
+                    alpha_entropy=alpha,
+                    reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
+                        short_term_mem=mem,
+                        long_term_mem=mem,
+                        action_bounds=[
+                            default_actions_range[0],
+                            default_actions_range[-1],
+                        ],
+                        reward_bounds=(0.0, 1.0),
+                        layers=nn_layers,
+                        context_vector_size=3,
+                    ),
+                    pretrain_time=10,
+                    pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+                )
+            )
+
+            # MEMF_HMC_NN_50_50_A005
+            nn_layers = [50, 50]
+            alpha = 0.05
+            possible_policies.append(
+                MaxEntropyModelFreeContinuousHmc(
+                    mcmc_initial_state=5.0,
+                    name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}_sig_{mem}',
+                    alpha_entropy=alpha,
+                    reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
+                        short_term_mem=mem,
+                        long_term_mem=mem,
+                        # action_bounds=[default_actions_range[0], default_actions_range[-1]],
+                        action_bounds=[1.0, 10.0],
+                        reward_bounds=(0.0, 1.0),
+                        layers=nn_layers,
+                        context_vector_size=3,
+                    ),
+                    pretrain_time=10,
+                    pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+                )
+            )
+
+            # MEMF_HMC_NN_10_A01
+            nn_layers = [10]
+            alpha = 0.1
+            possible_policies.append(
+                MaxEntropyModelFreeContinuousHmc(
+                    mcmc_initial_state=5.0,
+                    name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}_sig_{mem}',
+                    alpha_entropy=alpha,
+                    reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
+                        short_term_mem=mem,
+                        long_term_mem=mem,
+                        # action_bounds=[default_actions_range[0], default_actions_range[-1]],
+                        action_bounds=[1.0, 10.0],
+                        reward_bounds=(0.0, 1.0),
+                        layers=nn_layers,
+                        context_vector_size=3,
+                    ),
+                    pretrain_time=10,
+                    pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+                )
+            )
 
         for policy_base in possible_policies:
             for environment in possible_environments:
@@ -346,12 +548,21 @@ if __name__ == "__main__":
                     use_mlflow=True,
                     policy=policy,
                     environment=environment,
-                    experiment_name=environment.name,
+                    experiment_name="NEW" + environment.name,
                 )
+
+                if ("mooo" in environment.name or "circ" in environment.name) and "LINUCB" in policy.name:
+                    policy.n_contex_features = 2
+                    policy = policy.__copy__()
 
                 steps_to_train = 1
                 if "NN" in policy.name:
                     steps_to_train = default_steps_before_retraining_nn
+                    if "mooo" in environment.name or "circ" in environment.name:
+                        policy.reward_estimator.context_vector_size = 2
+                        policy.reward_estimator = policy.reward_estimator.__copy__()
+                        policy = policy.__copy__()
+
 
                 simulate(
                     environment,

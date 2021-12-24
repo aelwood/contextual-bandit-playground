@@ -213,3 +213,4 @@ class Evaluator:
             ).with_suffix(".png")
             path.parents[0].mkdir(exist_ok=True)
             plt.savefig(path)
+            plt.close()

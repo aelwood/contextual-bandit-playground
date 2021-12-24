@@ -29,6 +29,7 @@ if typing.TYPE_CHECKING:
         Tuple,
     )
 
+#  TODO: copy should check if the param is an object, in that case it should call .__copy__ recursively
 
 class PolicyABC(metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -54,7 +55,7 @@ class PolicyABC(metaclass=abc.ABCMeta):
 
 
 class RandomPolicy(PolicyABC):
-    def __init__(self, distribution):
+    def __init__(self, distribution, **kwargs):
         self.name = "random"
         assert type(distribution) == scipy.stats._distn_infrastructure.rv_frozen
         self.distribution = distribution
@@ -73,7 +74,7 @@ class RandomPolicy(PolicyABC):
 
 
 class CyclicExploration(PolicyABC):
-    def __init__(self, arm_values: Sequence[float]):
+    def __init__(self, arm_values: Sequence[float], **kwargs):
         self.name = "CyclicExploration"
         self.arm_values = arm_values
         self.last_called_item = 0
@@ -94,7 +95,7 @@ class CyclicExploration(PolicyABC):
 
 
 class MABPolicyABC(PolicyABC):
-    def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
+    def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0, **kwargs):
         self.arm_values = arm_values
         self.values_arm = {v: k for k, v in arm_values.items()}
         self.epsilon = epsilon
@@ -155,13 +156,13 @@ class UcbPolicy(MABPolicyABC):
     sw = sliding windows parameters: number of samples to consider during the training phase
     """
 
-    def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
+    def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0, **kwargs):
         if sw == 0:
             self.name = "UCB1"
         else:
             self.name = f"UCB1_SW_{np.abs(sw)}"
 
-        super(UcbPolicy, self).__init__(arm_values, epsilon, sw)
+        super(UcbPolicy, self).__init__(arm_values, epsilon, sw, **kwargs)
 
     def get_action(self, context):
         """
@@ -192,14 +193,14 @@ class UcbPolicy(MABPolicyABC):
 
 
 class ThompsonSamplingPolicy(MABPolicyABC):
-    def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0):
+    def __init__(self, arm_values: Dict[int, float], epsilon=0.02, sw=0, **kwargs):
         self.name = ""
         if sw == 0:
             self.name = "TS"
         else:
             self.name = f"TS_SW_{np.abs(sw)}"
 
-        super(ThompsonSamplingPolicy, self).__init__(arm_values, epsilon, sw)
+        super(ThompsonSamplingPolicy, self).__init__(arm_values, epsilon, sw, **kwargs)
 
     def get_action(self, context):
         samples = {}
@@ -216,7 +217,7 @@ class LinUcbDisjointArm:
     https://github.com/kfoofw/bandit_simulations/blob/master/python/contextual_bandits/notebooks/LinUCB_disjoint.ipynb
     """
 
-    def __init__(self, arm_index, d, alpha):
+    def __init__(self, arm_index, d, alpha, **kwargs):
         # Track arm index
         self.arm_index = arm_index
 
@@ -266,7 +267,9 @@ class LinUcbDisjointArm:
 
 
 class LinUcbPolicy(PolicyABC):
-    def __init__(self, arm_values: Dict[int, float], n_contex_features, alpha, sw=0):
+    def __init__(
+        self, arm_values: Dict[int, float], n_contex_features, alpha, sw=0, **kwargs
+    ):
         self.name = f"LINUCB_a_{str(alpha).replace('.','')}"
         self.arm_values = arm_values
         self.values_arm = {v: k for k, v in arm_values.items()}
@@ -377,6 +380,11 @@ class RewardEstimatorWithDataPreparationABC(RewardEstimatorABC, metaclass=abc.AB
 
     def _prepare_y(self, y):
         return np.array(y)
+
+    def __copy__(self):
+        return self.__class__(
+            **{k: v for k, v in vars(self).items() if not k.startswith("_")}
+        )
 
 
 class LinearRegressionEstimatorABC(RewardEstimatorWithDataPreparationABC):
@@ -583,6 +591,7 @@ class NeuralNetworkRewardEstimator(RewardEstimatorWithDataPreparationABC):
         sigmoid_on_output: bool = True,
         epochs: int = 10,
         batch_size: int = 2,
+        **kwargs,
     ):
         self.layers = layers
         self.context_vector_size = context_vector_size
@@ -641,16 +650,22 @@ class NeuralNetworkRewardEstimator(RewardEstimatorWithDataPreparationABC):
 
 
 class OverrideGetTrainingWeightsSigmoidMixin:
-    # TODO override init
+    def __init__(
+        self,
+        short_term_mem: int = 200,
+        long_term_mem: int = 100,
+        **kwargs,
+    ):
+        self.short_term_mem = short_term_mem
+        self.long_term_mem = long_term_mem
+        super(OverrideGetTrainingWeightsSigmoidMixin, self).__init__(**kwargs)
+
     def get_training_weights(self, past_actions):
-        short_term_mem = 200
-        long_term_mem = 100
-        short_term_mem = min(short_term_mem, len(past_actions))
-        long_term_mem = max(min(long_term_mem, len(past_actions) - short_term_mem), 0)
-
+        short_term_mem = min(self.short_term_mem, len(past_actions))
+        long_term_mem = max(
+            min(self.long_term_mem, len(past_actions) - short_term_mem), 0
+        )
         memory = short_term_mem + long_term_mem
-
-        starting_point = len(past_actions) - memory
         if long_term_mem > 0:
             q = 1 / long_term_mem
             a = len(past_actions) - long_term_mem - short_term_mem
