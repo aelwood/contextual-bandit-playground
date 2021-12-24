@@ -43,8 +43,8 @@ if __name__ == "__main__":
 
     # Sigmoid:
     # TODO
-    short_term_mem = 200 # 300
-    long_term_mem = 100 # 300
+    short_term_mem = 200  # 300
+    long_term_mem = 100  # 300
     short_term_mem = min(short_term_mem, len(past_actions))
     long_term_mem = max(min(long_term_mem, len(past_actions) - short_term_mem), 0)
 
