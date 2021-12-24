@@ -47,13 +47,10 @@ class PolicyABC(metaclass=abc.ABCMeta):
     def get_params(self):
         pass
 
-    @abc.abstractmethod
     def __copy__(self):
-        pass
-
-    # @abc.abstractmethod
-    # def __deepcopy__(self, memo):
-    #     pass
+        return self.__class__(
+            **{k: v for k, v in vars(self).items() if not k.startswith("_")}
+        )
 
 
 class RandomPolicy(PolicyABC):
@@ -61,12 +58,6 @@ class RandomPolicy(PolicyABC):
         self.name = "random"
         assert type(distribution) == scipy.stats._distn_infrastructure.rv_frozen
         self.distribution = distribution
-
-    def __copy__(self):
-        return RandomPolicy(self.distribution)
-
-    # def __deepcopy__(self, memo):
-    #     return RandomPolicy(copy.deepcopy(self.distribution, memo))
 
     def train(self):
         pass
@@ -86,12 +77,6 @@ class CyclicExploration(PolicyABC):
         self.name = "CyclicExploration"
         self.arm_values = arm_values
         self.last_called_item = 0
-
-    def __copy__(self):
-        return CyclicExploration(self.arm_values)
-
-    def __deepcopy__(self, memo):
-        return CyclicExploration(copy.deepcopy(self.arm_values, memo))
 
     def train(self):
         pass
@@ -178,12 +163,6 @@ class UcbPolicy(MABPolicyABC):
 
         super(UcbPolicy, self).__init__(arm_values, epsilon, sw)
 
-    def __copy__(self):
-        return UcbPolicy(self.arm_values, self.epsilon, self.sw)
-
-    def __deepcopy__(self, memo):
-        return UcbPolicy(copy.deepcopy(self.arm_values, self.epsilon, self.sw, memo))
-
     def get_action(self, context):
         """
         math.sqrt((2 * math.log(total_counts)) / float(self.counts[arm]))
@@ -221,14 +200,6 @@ class ThompsonSamplingPolicy(MABPolicyABC):
             self.name = f"TS_SW_{np.abs(sw)}"
 
         super(ThompsonSamplingPolicy, self).__init__(arm_values, epsilon, sw)
-
-    def __copy__(self):
-        return ThompsonSamplingPolicy(self.arm_values, self.epsilon, self.sw)
-
-    def __deepcopy__(self, memo):
-        return ThompsonSamplingPolicy(
-            copy.deepcopy(self.arm_values, self.epsilon, self.sw, memo)
-        )
 
     def get_action(self, context):
         samples = {}
@@ -313,18 +284,6 @@ class LinUcbPolicy(PolicyABC):
         self.past_contexts = []
         self.past_rewards = []
         self.past_actions = []
-
-    def __copy__(self):
-        return LinUcbPolicy(
-            self.arm_values, self.n_contex_features, self.alpha, self.sw
-        )
-
-    def __deepcopy__(self, memo):
-        return LinUcbPolicy(
-            copy.deepcopy(
-                self.arm_values, self.n_contex_features, self.alpha, self.sw, memo
-            )
-        )
 
     def get_params(self):
         return {
@@ -726,6 +685,7 @@ class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
         alpha_entropy: float,
         pretrain_time: int,
         pretrain_policy: PolicyABC,
+        **kwargs,
     ):
         self.alpha_entropy = alpha_entropy
         self.reward_estimator = reward_estimator
@@ -737,14 +697,6 @@ class MaxEntropyModelFreeABC(PolicyABC, metaclass=abc.ABCMeta):
         self.pretrain_time = pretrain_time
         self.pretrain_policy = pretrain_policy
         self.pretrain_counter = 0
-
-    @abc.abstractmethod
-    def __copy__(self):
-        pass
-
-    @abc.abstractmethod
-    def __deepcopy__(self, memo):
-        pass
 
     def train(self):
         if self.pretrain_counter < self.pretrain_time:
@@ -794,31 +746,6 @@ class MaxEntropyModelFreeDiscrete(MaxEntropyModelFreeABC):
         self.name = name
         self.possible_actions = possible_actions
         super(MaxEntropyModelFreeDiscrete, self).__init__(**kwargs)
-
-    def __copy__(self):
-        return MaxEntropyModelFreeDiscrete(
-            **{
-                "possible_actions": self.possible_actions,
-                "name": self.name,
-                "reward_estimator": self.reward_estimator,
-                "alpha_entropy": self.alpha_entropy,
-                "pretrain_time": self.pretrain_time,
-                "pretrain_policy": self.pretrain_policy,
-            }
-        )
-
-    def __deepcopy__(self, memo):
-        return MaxEntropyModelFreeDiscrete(
-            copy.deepcopy(
-                self.possible_actions,
-                self.name,
-                self.reward_estimator,
-                self.alpha_entropy,
-                self.pretrain_time,
-                self.pretrain_policy,
-                memo,
-            )
-        )
 
     def get_params(self):
         fd = super(MaxEntropyModelFreeDiscrete, self).get_params()
@@ -883,32 +810,6 @@ class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):
     def __init__(self, **kwargs):
         self.name = "MaxEntropyModelFreeContinuousHmc"
         super(MaxEntropyModelFreeContinuousHmc, self).__init__(**kwargs)
-
-    def __copy__(self):
-        return MaxEntropyModelFreeContinuousHmc(
-            **{k: v for k, v in vars(self).items() if not k.startswith("_")}
-            # **{
-            #     "mcmc_initial_state": self.mcmc_initial_state,
-            #     "reward_estimator": self.reward_estimator,
-            #     "alpha_entropy": self.alpha_entropy,
-            #     "pretrain_time": self.pretrain_time,
-            #     "pretrain_policy": self.pretrain_policy,
-            #     "name": self.name,
-            # }
-        )
-
-    def __deepcopy__(self, memo):
-        return MaxEntropyModelFreeContinuousHmc(
-            copy.deepcopy(
-                self.mcmc_initial_state,
-                self.reward_estimator,
-                self.alpha_entropy,
-                self.pretrain_time,
-                self.pretrain_policy,
-                self.name,
-                memo,
-            )
-        )
 
     def _get_mcmc_kernel(self, log_prob_function):
         return tfp.mcmc.HamiltonianMonteCarlo(
