@@ -38,7 +38,8 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         time_perturbation_function,
         fixed_variances=0.6,
         n_context_features=3,
-        environment_best_action_offset=0,
+        environment_best_action_offset=1,
+        action_offset = 2,
         name="default",
     ):
         """
@@ -66,7 +67,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         self.context_vectors = context_vectors
         self.context_ids = context_ids
 
-        if type(fixed_variances) == float:
+        if type(fixed_variances) in [float, int]:
             fixed_variances = [fixed_variances] * number_of_different_context
         else:
             assert len(fixed_variances) == number_of_different_context, (
@@ -74,10 +75,11 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
                 "to the number of different context "
             )
 
+
         # Generate reward functions
         self.context_reward_parameters = {
             context_id: {
-                "mu": context_id * 4 + 1 + environment_best_action_offset,
+                "mu": context_id * action_offset + environment_best_action_offset,
                 "sigma": fixed_variances[context_id],
             }
             for context_id in range(number_of_different_context)
@@ -194,43 +196,46 @@ if __name__ == "__main__":
     environment = CirclesSyntheticEnvironment(
         number_of_different_context=2,
         n_context_features=2,
-        number_of_observations=1_000,
-        time_perturbation_function=lambda time, mu: mu + np.cos(time / 500),
+        number_of_observations=2_000,
+        time_perturbation_function=lambda time, mu: mu + np.cos(time / 500)*100,
+        fixed_variances=30,
+        environment_best_action_offset=300,
+        action_offset=400,
     )
     # Plotting the contex space
-    for unique_id in np.unique(environment.context_ids):
-        points = environment.context_vectors[environment.context_ids == unique_id]
-        plt.scatter(points[:, 0], points[:, 1], label=unique_id)
-
-    plt.show()
-    1 == 1
+    # for unique_id in np.unique(environment.context_ids):
+    #     points = environment.context_vectors[environment.context_ids == unique_id]
+    #     plt.scatter(points[:, 0], points[:, 1], label=unique_id)
+    #
+    # plt.show()
+    # 1 == 1
 
     # Plotting the actions
-    # bests_rewards = []
-    # bests_context = []
-    #
-    # for i, c in enumerate(environment.generate_contexts()):
-    #     (
-    #         best_reward,
-    #         best_context,
-    #         stochastic_reward,
-    #     ) = environment.get_best_reward_action(c)
-    #     bests_rewards.append(best_reward)
-    #     bests_context.append(best_context)
-    #
-    # plt.plot(
-    #     np.arange(len(bests_rewards)),
-    #     bests_rewards,
-    #     label="reward",
-    #     linestyle="",
-    #     marker="^",
-    # )
-    # plt.plot(
-    #     np.arange(len(bests_context)),
-    #     bests_context,
-    #     label="context",
-    #     linestyle="",
-    #     marker="^",
-    # )
-    # plt.legend()
-    # plt.show()
+    bests_rewards = []
+    bests_context = []
+
+    for i, c in enumerate(environment.generate_contexts()):
+        (
+            best_reward,
+            best_context,
+            stochastic_reward,
+        ) = environment.get_best_reward_action(c)
+        bests_rewards.append(best_reward)
+        bests_context.append(best_context)
+
+    plt.plot(
+        np.arange(len(bests_rewards)),
+        bests_rewards,
+        label="reward",
+        linestyle="",
+        marker="^",
+    )
+    plt.plot(
+        np.arange(len(bests_context)),
+        bests_context,
+        label="context",
+        linestyle="",
+        marker="^",
+    )
+    plt.legend()
+    plt.show()

@@ -783,11 +783,13 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
     def __init__(
         self,
         *,
-        mcmc_initial_state: float,
+        mcmc_initial_state: Union[float,tuple(float,float),str],
+        num_burnin_steps: int = 100,
         name="MaxEntropyModelFreeContinuous",
         **kwargs,
     ):
         self.mcmc_initial_state = mcmc_initial_state
+        self.num_burnin_steps = num_burnin_steps
         self.name = name
         super(MaxEntropyModelFreeContinuousABC, self).__init__(**kwargs)
 
@@ -800,6 +802,16 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
     def _get_mcmc_kernel(self, log_prob_function):
         pass
 
+    def _get_mcmc_initial_state(self):
+        if type(self.mcmc_initial_state) == float:
+            return self.mcmc_initial_state
+        if type(self.mcmc_initial_state) == tuple:
+            return np.random.uniform(self.mcmc_initial_state[0],self.mcmc_initial_state[1])
+        if self.mcmc_initial_state == 'last_state':
+            if len(self.past_actions) == 0:
+                return 5.
+            else:
+                return float(self.past_actions[-1])
     def _get_action_after_pretrain(self, context: np.ndarray) -> float:
         # Here we need to implement sampling from an MCMC type thing
 
@@ -812,8 +824,8 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
 
         state = tfp.mcmc.sample_chain(
             num_results=1,
-            num_burnin_steps=100,
-            current_state=self.mcmc_initial_state,
+            num_burnin_steps=self.num_burnin_steps,  # [50,100,500,1_000]
+            current_state=self._get_mcmc_initial_state(),
             kernel=self._get_mcmc_kernel(log_prob_function=unnormalized_log_prob),
             trace_fn=None,
         )
