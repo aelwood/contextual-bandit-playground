@@ -40,6 +40,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         n_context_features=3,
         environment_best_action_offset=1,
         action_offset = 2,
+        mul_factor = 1,
         name="default",
     ):
         """
@@ -54,7 +55,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         self.number_of_observations = number_of_observations
         self.time_perturbation_function = time_perturbation_function
         self.name = name
-
+        self.mul_factor = mul_factor
         # Generate the contexts
         context_vectors, context_ids = self._generate_context(
             number_of_observations, n_context_features, number_of_different_context
@@ -122,7 +123,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         reward = norm.pdf(
             action, loc=updated_mu, scale=context_reward_parameters["sigma"]
         )
-        reward = np.round(reward, 4)
+        reward = np.round(reward*self.mul_factor, 4)
         stochastic_reward = np.random.rand() < reward
         return reward, stochastic_reward
 
@@ -144,7 +145,7 @@ class SyntheticEnvironment(EnvironmentABC, ABC):
         optimal_r = norm.pdf(
             optimal_a, loc=updated_mu, scale=context_reward_parameters["sigma"]
         )
-        optimal_r = np.round(optimal_r, 4)
+        optimal_r = np.round(optimal_r*self.mul_factor, 4)
         stochastic_reward = np.random.rand() < optimal_r
 
         return optimal_r, optimal_a, stochastic_reward
@@ -239,3 +240,5 @@ if __name__ == "__main__":
     )
     plt.legend()
     plt.show()
+
+    1==1

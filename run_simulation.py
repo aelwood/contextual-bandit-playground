@@ -136,6 +136,7 @@ if __name__ == "__main__":
                 fixed_variances=30,
                 environment_best_action_offset=300,
                 action_offset=400,
+                mul_factor=120,
                 name="2c_dm_slw_circ",
             ),
             CirclesSyntheticEnvironment(
@@ -148,6 +149,7 @@ if __name__ == "__main__":
                 fixed_variances=30,
                 environment_best_action_offset=300,
                 action_offset=400,
+                mul_factor=120,
                 name="2c_dm_circ",
             ),
             CirclesSyntheticEnvironment(
@@ -160,6 +162,7 @@ if __name__ == "__main__":
                 fixed_variances=30,
                 environment_best_action_offset=300,
                 action_offset=400,
+                mul_factor=120,
                 name="2c_dm_fst_circ",
             ),
         ]
@@ -302,7 +305,7 @@ if __name__ == "__main__":
                     use_mlflow=True,
                     policy=policy,
                     environment=environment,
-                    experiment_name="WIN" + environment.name,
+                    experiment_name="WINWIN" + environment.name,
                 )
                 steps_to_train = 1
                 if "NN" in policy.name:
@@ -328,7 +331,7 @@ if __name__ == "__main__":
                 use_mlflow=True,
                 policy=policy,
                 environment=environment,
-                experiment_name="WIN" + environment.name,
+                experiment_name="WINWIN" + environment.name,
             )
 
             steps_to_train = 1
