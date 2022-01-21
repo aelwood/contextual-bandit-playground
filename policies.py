@@ -834,11 +834,12 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
 
 
 class MaxEntropyModelFreeContinuousHmc(MaxEntropyModelFreeContinuousABC):
-    def __init__(self, **kwargs):
+    def __init__(self,step_size:float=1.0, **kwargs):
         self.name = "MaxEntropyModelFreeContinuousHmc"
+        self.step_size = step_size
         super(MaxEntropyModelFreeContinuousHmc, self).__init__(**kwargs)
 
     def _get_mcmc_kernel(self, log_prob_function):
         return tfp.mcmc.HamiltonianMonteCarlo(
-            target_log_prob_fn=log_prob_function, step_size=1.0, num_leapfrog_steps=2
+            target_log_prob_fn=log_prob_function, step_size=self.step_size, num_leapfrog_steps=2
         )
