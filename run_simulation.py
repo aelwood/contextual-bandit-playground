@@ -182,7 +182,7 @@ if __name__ == "__main__":
         for variance,mul in zip([0.6,0.5,0.4,0.3,0.2,0.1],[1,1,0.9,0.7,0.4,0.2]):
         # NEW
         # for variance,mul in zip([60,50,40,30,20,10],[100,90,90,70,40,20]):
-            super_envs.appen(
+            super_envs.append(
             CirclesSyntheticEnvironment(
                 number_of_different_context=2,
                 n_context_features=2,
@@ -219,35 +219,35 @@ if __name__ == "__main__":
         pretrain_time = 10
         pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=10))
         step_size=1
-        mcmc_initial_state = 5
+        mcmc_initial_state = 5.
 
         possible_policies = [
-            UcbPolicy({k: v for k, v in enumerate(default_actions_range)}),
-            UcbPolicy({k: v for k, v in enumerate(default_actions_range)}, sw=-200),
-            ThompsonSamplingPolicy({k: v for k, v in enumerate(default_actions_range)}),
-            ThompsonSamplingPolicy(
-                {k: v for k, v in enumerate(default_actions_range)}, sw=-200
-            ),
+            # UcbPolicy({k: v for k, v in enumerate(default_actions_range)}),
+            # UcbPolicy({k: v for k, v in enumerate(default_actions_range)}, sw=-200),
+            # ThompsonSamplingPolicy({k: v for k, v in enumerate(default_actions_range)}),
+            # ThompsonSamplingPolicy(
+            #     {k: v for k, v in enumerate(default_actions_range)}, sw=-200
+            # ),
         ]
 
-        # MEMF_NN_50_50_A01
-        nn_layers = [50, 50]
-        alpha = 0.1
-        possible_policies.append(
-            MaxEntropyModelFreeDiscrete(
-                possible_actions=default_actions_range,
-                name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
-                alpha_entropy=alpha,
-                reward_estimator=LimitedNeuralNetworkRewardEstimator(
-                    action_bounds=action_bounds,
-                    reward_bounds=reward_bounds,
-                    layers=nn_layers,
-                    context_vector_size=context_vector_size,
-                ),
-                pretrain_time=pretrain_time,
-                pretrain_policy=pretrain_policy,
-            )
-        )
+        # # MEMF_NN_50_50_A01
+        # nn_layers = [50, 50]
+        # alpha = 0.1
+        # possible_policies.append(
+        #     MaxEntropyModelFreeDiscrete(
+        #         possible_actions=default_actions_range,
+        #         name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
+        #         alpha_entropy=alpha,
+        #         reward_estimator=LimitedNeuralNetworkRewardEstimator(
+        #             action_bounds=action_bounds,
+        #             reward_bounds=reward_bounds,
+        #             layers=nn_layers,
+        #             context_vector_size=context_vector_size,
+        #         ),
+        #         pretrain_time=pretrain_time,
+        #         pretrain_policy=pretrain_policy,
+        #     )
+        # )
 
         # MEMF_HMC_NN_50_50_A005
         nn_layers = [50, 50]
