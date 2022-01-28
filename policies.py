@@ -812,6 +812,7 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
                 return 5.
             else:
                 return float(self.past_actions[-1])
+
     def _get_action_after_pretrain(self, context: np.ndarray) -> float:
         # Here we need to implement sampling from an MCMC type thing
 
@@ -829,6 +830,8 @@ class MaxEntropyModelFreeContinuousABC(MaxEntropyModelFreeABC, metaclass=abc.ABC
             kernel=self._get_mcmc_kernel(log_prob_function=unnormalized_log_prob),
             trace_fn=None,
         )
+
+        # expected_reward = self.reward_estimator.predict(context, state)
 
         return float(state)
 
