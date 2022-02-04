@@ -21,6 +21,7 @@ from policies import (
     LimitedNeuralNetworkRewardEstimator,
     LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid,
 )
+from policies_energy_based import EBMPolicy
 
 
 import tensorflow as tf
@@ -55,14 +56,12 @@ def simulate(
     evaluator.end()
 
 
-def tes_MaxEntropyModelFreeContinuousHmc():
+def tes_EBM():
     environment = CirclesSyntheticEnvironment(
                 number_of_different_context=2,
                 n_context_features=2,
                 number_of_observations=2_000,
-                time_perturbation_function=lambda time, mu: mu
-                                                            + np.cos(time / 200)
-                                                            + 0.5,
+                time_perturbation_function=lambda time, mu: mu,
                 fixed_variances=0.6,
                 environment_best_action_offset=2,
                 action_offset= 4,
@@ -70,33 +69,9 @@ def tes_MaxEntropyModelFreeContinuousHmc():
                 name="2c_dm_fst_circ",
             )
 
-    nn_layers = [50]
-    alpha = 0.05
-    mem = 200
-
-
-    policy = MaxEntropyModelFreeContinuousHmc(
-        mcmc_initial_state=5.,
-        step_size=1,
-        num_burnin_steps=100,
-        name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}_sig_{mem}',
-        alpha_entropy=alpha,
-        reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
-            short_term_mem=mem,
-            long_term_mem=mem,
-            action_bounds=[1, 10],
-            reward_bounds = (0.0, 1.0),
-            layers=nn_layers,
-            context_vector_size=2,
-        ),
-        pretrain_time=10,
-        pretrain_policy=RandomPolicy(uniform(loc=0.5, scale=10)),
+    policy = EBMPolicy(
+        name=f'EBM_TEST',
     )
-
-    # policy = ThompsonSamplingPolicy(
-    #     {k: v for k, v in enumerate(np.arange(0, 1_001, 100))}, sw=-200
-    # )
-
 
     evaluator = Evaluator(
         run_name=f"{policy.name}_TEST9l",
@@ -113,10 +88,10 @@ def tes_MaxEntropyModelFreeContinuousHmc():
 
 
 if __name__ == "__main__":
-    run_ablation_test = True
+    run_ablation_test = False
 
     if not run_ablation_test:
-        tes_MaxEntropyModelFreeContinuousHmc()
+        tes_EBM()
     else:
         # # NEW
         # number_of_observations = 2_000
