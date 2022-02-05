@@ -71,6 +71,7 @@ def tes_EBM():
 
     policy = EBMPolicy(
         name=f'EBM_TEST',
+        lr=0.01,
     )
 
     evaluator = Evaluator(
@@ -83,7 +84,7 @@ def tes_EBM():
         experiment_name=environment.name,
     )
     simulate(
-        environment, policy, evaluator, evaluation_frequency=100, steps_to_train=10
+        environment, policy, evaluator, evaluation_frequency=100, steps_to_train=256
     )
 
 
