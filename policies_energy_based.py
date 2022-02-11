@@ -20,6 +20,12 @@ class EnergyBasedModel(nn.Module):
 
         self.layers = cnn_layers
 
+    def reinitialize_weights(self):
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                torch.nn.init.xavier_uniform(layer.weight)
+                layer.bias.data.fill_(0.01)
+
     def forward(self, x):
         # x is [context, action, reward]
         # y = torch.cat(x)
@@ -129,7 +135,7 @@ class LangevinDynamicsSampler:
             # Part 2: calculate gradients for the current input.
             out_imgs = -model(inp_features)
             out_imgs.sum().backward()
-            # inp_features.grad.data.clamp_(-0.03, 0.03) # For stabilizing and preventing too high gradients
+            inp_features.grad.data.clamp_(-0.03, 0.03) # For stabilizing and preventing too high gradients
 
             # Apply gradients to our current samples
             inp_features.data.add_(-step_size * inp_features.grad.data)
@@ -194,7 +200,7 @@ class LangevinDynamicsSampler:
             # Part 1: Add noise to the input.
             noise.normal_(0, 0.005)
             inp_features.data.add_(noise.data)
-            inp_features.data.clamp_(min=0, max=10.0)
+            # inp_features.data.clamp_(min=0, max=10.0)
 
             # Part 2: calculate gradients for the current input.
             out_imgs = model(
@@ -209,7 +215,7 @@ class LangevinDynamicsSampler:
             inp_features.data.add_(-step_size * inp_features.grad.data)
             inp_features.grad.detach_()
             inp_features.grad.zero_()
-            inp_features.data.clamp_(min=0, max=10.0)
+            # inp_features.data.clamp_(min=0, max=10.0)
 
             if return_img_per_step:
                 feature_per_step.append(inp_features.clone().detach())
@@ -268,6 +274,7 @@ class EBMPolicy(PolicyABC):
         )
         self.reg_lambda = reg_lambda
         self.optimizer = optim.Adam(self.ebm_estimator.parameters(), lr=lr)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1, gamma=0.97)  # Exponential decay over epochs
 
     def notify_event(self, context, action, stochastic_reward):
         self.past_contexts.append(context)
@@ -278,19 +285,20 @@ class EBMPolicy(PolicyABC):
         """
         here we want to implement the second half of Algo1
         beta pos = self.past_contexts, self.past_rewards
-        beta neg = self.past_contexts, self.expected_rewards_from_model
         """
         if self.warm_up > len(self.past_contexts):
             return None
         xp = np.hstack([np.vstack(self.past_contexts), np.vstack(self.past_actions), np.vstack(self.past_rewards)])
         xp = torch.tensor(xp)
 
-        # do the gradient update step
+        # Restart
+        # self.ebm_estimator.reinitialize_weights()
 
+        # do the gradient update step
         for epoch in range(self.num_epochs):
             self.ebm_estimator.train()
             xp = xp[torch.randperm(xp.size()[0]), :]  # random shuffling
-            losses = []
+            running_loss = []
             for xp_batch in xp.split(self.sample_size):
                 xm_batch = self.sampler.sample_new_exmps(steps=60, step_size=10)
 
@@ -310,9 +318,11 @@ class EBMPolicy(PolicyABC):
                 loss = reg_loss + cdiv_loss
                 loss.backward()
                 self.optimizer.step()
-                losses.append(loss.item())
+                running_loss.append(loss.item())
 
-            print(f'Epoch {epoch} avg loss {np.mean(losses)}')
+            self.scheduler.step()
+
+            print(f'Epoch {epoch} avg loss {np.mean(running_loss)}')
 
         self.ebm_estimator.eval()
         #TODO: maybe valdiation
@@ -338,10 +348,10 @@ class EBMPolicy(PolicyABC):
 
         # TODO: sample with SGLD or MPPI instead?
         action = self.sampler.generate_samples_from_context(self.ebm_estimator, context)
-        expected_reward = self.ebm_estimator(
-            torch.cat([torch.tensor(context), action, torch.tensor([1])]).float()
-        )
-        self.expected_rewards_from_model.append(expected_reward.item())
+        # expected_reward = self.ebm_estimator(
+        #     torch.cat([torch.tensor(context), action, torch.tensor([1])]).float()
+        # )
+        # self.expected_rewards_from_model.append(expected_reward.item())
         return float(action)
 
     def get_params(self):

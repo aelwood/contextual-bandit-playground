@@ -71,7 +71,7 @@ def tes_EBM():
 
     policy = EBMPolicy(
         name=f'EBM_TEST',
-        lr=0.01,
+        lr=0.0001,
     )
 
     evaluator = Evaluator(
