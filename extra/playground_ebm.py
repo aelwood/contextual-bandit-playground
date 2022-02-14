@@ -9,6 +9,10 @@ from collections import defaultdict
 import torch.optim as optim
 from sklearn.datasets import make_blobs
 
+## setting the random seeds, for easy testing and developments
+random_seed = 42
+random.seed(random_seed)
+np.random.seed(random_seed)
 
 class EnergyBasedModel(nn.Module):
     def __init__(self, in_features_size=32, hidden_feature_size=[32, 16, 8]):
