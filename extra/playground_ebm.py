@@ -465,7 +465,7 @@ if __name__ == "__main__":
 
     plt.legend()
     plt.show()
-
+    st_for_plot_naming = 0
     for _ in range(5):
         # TEST OF CREATING A NEW EXAMPLE
         context_a = test_past_contexts[test_context_ids == 1][0]
@@ -493,7 +493,7 @@ if __name__ == "__main__":
             action_to_play.data.add_(noise.data)
 
             # Part 2: calculate gradients for the current input.
-            state = model(
+            state = - model(
                 torch.cat(
                     [torch.tensor(context_a), action_to_play, torch.tensor([1])]
                 ).float()
@@ -518,8 +518,9 @@ if __name__ == "__main__":
         )
         plt.axhline(0.8, label="maximum", color="b")
         plt.axhline(0.7, label="minimun", color="r")
-        plt.title("Optimal action investigation")
+        plt.title(f"Optimal action investigation {st_for_plot_naming}")
         plt.xlabel("Steps")
         plt.ylabel("Action")
         plt.legend()
         plt.show()
+        st_for_plot_naming+=1
