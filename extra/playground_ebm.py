@@ -269,6 +269,8 @@ if __name__ == "__main__":
     centers = 2
     percentage_of_wrong_actions = 0.5
 
+    plot_me = False
+
     metric_watcher = defaultdict(list)
 
     # # # # # # # # # # # # # # # #
@@ -347,7 +349,8 @@ if __name__ == "__main__":
         marker="*",
         color="b",
     )
-    plt.show()
+    if plot_me:
+        plt.show()
 
     past_contexts = context_vectors[: int(len(context_vectors) * 0.7)]
     past_actions = played_actions[: int(len(played_actions) * 0.7)]
@@ -468,11 +471,78 @@ if __name__ == "__main__":
         )
 
     plt.legend()
-    plt.show()
-    st_for_plot_naming = 0
-    for _ in range(5):
-        # TEST OF CREATING A NEW EXAMPLE
-        context_a = test_past_contexts[test_context_ids == 1][0]
+    if plot_me:
+        plt.show()
+        st_for_plot_naming = 0
+        for _ in range(5):
+            # TEST OF CREATING A NEW EXAMPLE
+            context_a = test_past_contexts[test_context_ids == 1][0]
+
+            action_to_play = torch.rand(1)
+            model.eval()
+            for p in model.parameters():
+                p.requires_grad = False
+            action_to_play.requires_grad = True
+
+            # Enable gradient calculation if not already the case
+            had_gradients_enabled = torch.is_grad_enabled()
+            torch.set_grad_enabled(True)
+
+            # We use a buffer tensor in which we generate noise each loop iteration.
+            # More efficient than creating a new tensor every iteration.
+            noise = torch.randn(action_to_play.shape, device=action_to_play.device) / 10
+
+            # List for storing generations at each step (for later analysis)
+            action_per_step = []
+            # Loop over K (steps)
+            for _ in range(steps):
+                # Part 1: Add noise to the input.
+                noise.normal_(0, 0.005)
+                action_to_play.data.add_(noise.data)
+
+                # Part 2: calculate gradients for the current input.
+                state = - model(
+                    torch.cat(
+                        [torch.tensor(context_a), action_to_play, torch.tensor([1])]
+                    ).float()
+                )
+                state.sum().backward()
+                action_to_play.grad.data.clamp_(
+                    -0.03, 0.03
+                )  # For stabilizing and preventing too high gradients
+
+                # Apply gradients to our current samples
+                action_to_play.data.add_(-step_size * action_to_play.grad.data)
+                action_to_play.grad.detach_()
+                action_to_play.grad.zero_()
+                # inp_features.data.clamp_(min=0, max=10.0)
+
+                action_per_step.append(action_to_play.clone().detach())
+
+            plt.plot(np.arange(len(action_per_step)), action_per_step, color="b")
+            plt.plot(0, action_per_step[0], label="initial_state", marker="o")
+            plt.plot(
+                len(action_per_step) - 1, action_per_step[-1], label="final_state", marker="o"
+            )
+            plt.axhline(0.8, label="maximum", color="b")
+            plt.axhline(0.7, label="minimun", color="r")
+            plt.title(f"Optimal action investigation {st_for_plot_naming}")
+            plt.xlabel("Steps")
+            plt.ylabel("Action")
+            plt.legend()
+            plt.show()
+            st_for_plot_naming+=1
+
+    #  Real evaluation
+    rewards = []
+    random_rewards = []
+    for context, context_id in zip(test_past_contexts,test_context_ids):
+        if context_id == 1:
+            low = 0.7
+            high = 0.8
+        else:
+            low = 0.2
+            high = 0.3
 
         action_to_play = torch.rand(1)
         model.eval()
@@ -499,7 +569,7 @@ if __name__ == "__main__":
             # Part 2: calculate gradients for the current input.
             state = - model(
                 torch.cat(
-                    [torch.tensor(context_a), action_to_play, torch.tensor([1])]
+                    [torch.tensor(context), action_to_play, torch.tensor([1])]
                 ).float()
             )
             state.sum().backward()
@@ -515,16 +585,32 @@ if __name__ == "__main__":
 
             action_per_step.append(action_to_play.clone().detach())
 
-        plt.plot(np.arange(len(action_per_step)), action_per_step, color="b")
-        plt.plot(0, action_per_step[0], label="initial_state", marker="o")
-        plt.plot(
-            len(action_per_step) - 1, action_per_step[-1], label="final_state", marker="o"
-        )
-        plt.axhline(0.8, label="maximum", color="b")
-        plt.axhline(0.7, label="minimun", color="r")
-        plt.title(f"Optimal action investigation {st_for_plot_naming}")
-        plt.xlabel("Steps")
-        plt.ylabel("Action")
-        plt.legend()
-        plt.show()
-        st_for_plot_naming+=1
+        final_action = action_per_step[-1]
+        rewards.append(int(low<=final_action<=high))
+        random_rewards.append(int(low<=np.random.rand()<=high))
+
+    rewards = np.array(rewards)
+    random_rewards = np.array(random_rewards)
+    print(f'Average reward {rewards.mean():0.4f} vs random {random_rewards.mean():0.4f}')
+
+    if rewards.mean()<random_rewards.mean():
+        print('Shame!')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
