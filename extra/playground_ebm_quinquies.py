@@ -459,6 +459,9 @@ for id in range(2):
 final_results = []
 for test_context,context_id in zip(test_past_contexts,test_context_ids):
     final_action = gimme_sample(model, test_context,context_id, steps, step_size, plot=False)
-    final_results.append(actions_a_range[0] <= final_action <= actions_a_range[1])
+    if context_id==0:
+        final_results.append(actions_a_range[0] <= final_action <= actions_a_range[1])
+    else:
+        final_results.append(actions_b_range[0] <= final_action <= actions_b_range[1])
 
 print(f'Accuracy {np.mean(final_results):0.4f}')
