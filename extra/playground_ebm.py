@@ -8,6 +8,7 @@ from collections import defaultdict
 
 import torch.optim as optim
 from sklearn.datasets import make_blobs
+import matplotlib.animation as animation
 
 ## setting the random seeds, for easy testing and developments
 random_seed = 42
@@ -61,232 +62,17 @@ class EBMModel(nn.Module):
                 layer.bias.data.fill_(0.01)
 
     def forward(self, x, y):
+        """
+        :param x: [context,reward]
+        :param y: [action]
+        :return: energy
+        """
         x = x.float()
         for i in range(len(self.layers)):
             x = self.layers[i](x)
         x = x.squeeze(dim=-1)
         energy = 1/2 * torch.pow(x-y,2)
         return energy
-
-
-class LangevinDynamicsSampler:
-    def __init__(
-        self,
-        model,
-        context_size: tuple,
-        sample_size,
-        max_len=64,
-        device=torch.device("cpu"),
-    ):
-        """
-        Inputs:
-            model - Neural network to use for modeling E_theta
-            img_shape - Shape of the images to model
-            sample_size - Batch size of the samples
-            max_len - Maximum number of data points to keep in the buffer
-        """
-        super().__init__()
-        self.model = model
-        self.context_size = context_size
-        self.sample_size = sample_size
-        self.max_len = max_len
-        self.examples = [
-            (
-                torch.cat(
-                    [torch.rand(context_size), torch.rand(1) * 10, torch.rand(1) > 0.5]
-                ).unsqueeze(0)
-            )
-            for _ in range(self.sample_size)
-        ]  # TODO: atm the fake examples are created with a context between 0 and 1
-        self.device = device
-
-    def sample_new_exmps(self, steps=60, step_size=10):
-        """
-        Function for getting a new batch of "fake" images.
-        Inputs:
-            steps - Number of iterations in the MCMC algorithm
-            step_size - Learning rate nu in the algorithm above
-        """
-        # Choose 95% of the batch from the buffer, 5% generate from scratch
-        n_new = np.random.binomial(self.sample_size, 0.05)
-        if n_new == 0:
-            n_new = 1
-        rand_examples = torch.cat(
-            [
-                torch.cat(
-                    [
-                        torch.rand(self.context_size),
-                        torch.rand(1) * 10,
-                        torch.rand(1) > 0.5,
-                    ]
-                ).unsqueeze(0)
-                for _ in range(n_new)
-            ]
-        )
-
-        old_examples = torch.cat(
-            random.choices(self.examples, k=self.sample_size - n_new), dim=0
-        )
-        inp_examples = (
-            torch.cat([rand_examples, old_examples], dim=0).detach().to(self.device)
-        )
-
-        # Perform MCMC sampling
-        inp_examples = LangevinDynamicsSampler.generate_samples(
-            self.model, inp_examples, steps=steps, step_size=step_size
-        )
-
-        # Add new images to the buffer and remove old ones if needed
-        self.examples = (
-            list(inp_examples.to(torch.device("cpu")).chunk(self.sample_size, dim=0))
-            + self.examples
-        )
-        self.examples = self.examples[: self.max_len]
-        return inp_examples
-
-    @staticmethod
-    def generate_samples(
-        model, inp_features, steps=60, step_size=10, return_img_per_step=False
-    ):
-        """
-        Function for sampling images for a given model.
-        Inputs:
-            model - Neural network to use for modeling E_theta
-            inp_imgs - Images to start from for sampling. If you want to generate new images, enter noise between -1 and 1.
-            steps - Number of iterations in the MCMC algorithm.
-            step_size - Learning rate nu in the algorithm above
-            return_img_per_step - If True, we return the sample at every iteration of the MCMC
-        """
-        # Before MCMC: set model parameters to "required_grad=False"
-        # because we are only interested in the gradients of the input.
-
-        #  Context, action, state
-        is_training = model.training
-        model.eval()
-        for p in model.parameters():
-            p.requires_grad = False
-        inp_features.requires_grad = True
-
-        # Enable gradient calculation if not already the case
-        had_gradients_enabled = torch.is_grad_enabled()
-        torch.set_grad_enabled(True)
-
-        # We use a buffer tensor in which we generate noise each loop iteration.
-        # More efficient than creating a new tensor every iteration.
-        noise = torch.randn(inp_features.shape, device=inp_features.device)
-
-        # List for storing generations at each step (for later analysis)
-        feature_per_step = []
-
-        # Loop over K (steps)
-        for _ in range(steps):
-            # Part 1: Add noise to the input.
-            noise.normal_(0, 0.005)
-            inp_features.data.add_(noise.data)
-            inp_features.data.clamp_(min=0, max=10.0)
-
-            # Part 2: calculate gradients for the current input.
-            out_imgs = -model(inp_features)
-            out_imgs.sum().backward()
-            inp_features.grad.data.clamp_(
-                -0.03, 0.03
-            )  # For stabilizing and preventing too high gradients
-
-            # Apply gradients to our current samples
-            inp_features.data.add_(-step_size * inp_features.grad.data)
-            inp_features.grad.detach_()
-            inp_features.grad.zero_()
-            inp_features.data.clamp_(min=0, max=10.0)
-
-            if return_img_per_step:
-                feature_per_step.append(inp_features.clone().detach())
-
-        # Reactivate gradients for parameters for training
-        for p in model.parameters():
-            p.requires_grad = True
-        model.train(is_training)
-
-        # Reset gradient calculation to setting before this function
-        torch.set_grad_enabled(had_gradients_enabled)
-
-        if return_img_per_step:
-            return torch.stack(feature_per_step, dim=0)
-        else:
-            return inp_features
-
-    @staticmethod
-    def generate_samples_from_context(
-        model, context, steps=60, step_size=10, return_img_per_step=False
-    ):
-        """
-        Function for sampling images for a given model.
-        Inputs:
-            model - Neural network to use for modeling E_theta
-            inp_imgs - Images to start from for sampling. If you want to generate new images, enter noise between -1 and 1.
-            steps - Number of iterations in the MCMC algorithm.
-            step_size - Learning rate nu in the algorithm above
-            return_img_per_step - If True, we return the sample at every iteration of the MCMC
-        """
-        # Before MCMC: set model parameters to "required_grad=False"
-        # because we are only interested in the gradients of the input.
-
-        #  Context, action, state
-        inp_features = torch.rand(1) * 10
-
-        is_training = model.training
-        model.eval()
-        for p in model.parameters():
-            p.requires_grad = False
-        inp_features.requires_grad = True
-
-        # Enable gradient calculation if not already the case
-        had_gradients_enabled = torch.is_grad_enabled()
-        torch.set_grad_enabled(True)
-
-        # We use a buffer tensor in which we generate noise each loop iteration.
-        # More efficient than creating a new tensor every iteration.
-        noise = torch.randn(inp_features.shape, device=inp_features.device)
-
-        # List for storing generations at each step (for later analysis)
-        feature_per_step = []
-
-        # Loop over K (steps)
-        for _ in range(steps):
-            # Part 1: Add noise to the input.
-            noise.normal_(0, 0.005)
-            inp_features.data.add_(noise.data)
-            # inp_features.data.clamp_(min=0, max=10.0)
-
-            # Part 2: calculate gradients for the current input.
-            out_imgs = model(
-                torch.cat(
-                    [torch.tensor(context), inp_features, torch.tensor([1])]
-                ).float()
-            )
-            out_imgs.sum().backward()
-            # inp_features.grad.data.clamp_(-0.03, 0.03) # For stabilizing and preventing too high gradients
-
-            # Apply gradients to our current samples
-            inp_features.data.add_(-step_size * inp_features.grad.data)
-            inp_features.grad.detach_()
-            inp_features.grad.zero_()
-            # inp_features.data.clamp_(min=0, max=10.0)
-
-            if return_img_per_step:
-                feature_per_step.append(inp_features.clone().detach())
-
-        # Reactivate gradients for parameters for training
-        for p in model.parameters():
-            p.requires_grad = True
-        model.train(is_training)
-
-        # Reset gradient calculation to setting before this function
-        torch.set_grad_enabled(had_gradients_enabled)
-
-        if return_img_per_step:
-            return torch.stack(feature_per_step, dim=0)
-        else:
-            return inp_features
 
 
 if __name__ == "__main__":
@@ -493,7 +279,7 @@ if __name__ == "__main__":
     """
         Training of baselinge
         """
-    if True:
+    if not True:
         num_epochs = 128
         sample_size = 64
         lr = 1e-3
@@ -582,112 +368,48 @@ if __name__ == "__main__":
             f"Test loss {np.mean(test_running_loss):0.4f}"
         )
 
-    # Plot some shit
+        # Plot some shit
 
-    #  Action should be between 0.7 and 0.8
-    taken_context = test_past_contexts[test_context_ids==0][0]
-    taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[1]))).repeat(128, 1)
-    actions = np.linspace(0, 1, 128)
-    energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
-    plt.plot(actions,energy.detach().numpy())
-    plt.title("Positive reward- Action in the range of 0.7 and 0.8")
-    plt.show()
+        #  Action should be between 0.7 and 0.8
+        taken_context = test_past_contexts[test_context_ids==0][0]
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[1]))).repeat(128, 1)
+        actions = np.linspace(0, 1, 128)
+        energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
+        plt.plot(actions,energy.detach().numpy())
+        plt.title("Positive reward- Action in the range of 0.7 and 0.8")
+        plt.show()
 
-    taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[0]))).repeat(128, 1)
-    actions = np.linspace(0, 1, 128)
-    energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
-    plt.plot(actions,energy.detach().numpy())
-    plt.title("Negative reward - Action in the range of 0.7 and 0.8")
-    plt.show()
-
-
-    #  Action should be between 0.2 and 0.3
-    taken_context = test_past_contexts[test_context_ids==1][0]
-    taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[1]))).repeat(128, 1)
-    actions = np.linspace(0, 1, 128)
-    energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
-    plt.plot(actions,energy.detach().numpy())
-    plt.title("Positive reward- Action in the range of 0.2 and 0.3")
-    plt.show()
-
-    taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[0]))).repeat(128, 1)
-    actions = np.linspace(0, 1, 128)
-    energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
-    plt.plot(actions,energy.detach().numpy())
-    plt.title("Negative reward - Action in the range of 0.2 and 0.3")
-    plt.show()
-
-    # Test
-    steps = 100
-    step_size = 0.2
-
-    taken_context = test_past_contexts[test_context_ids==0][0]
-    taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[1])))
-
-    action_to_play = torch.rand(1)
-
-    model.eval()
-    for p in model.parameters():
-        p.requires_grad = False
-    action_to_play.requires_grad = True
-
-    # Enable gradient calculation if not already the case
-    had_gradients_enabled = torch.is_grad_enabled()
-    torch.set_grad_enabled(True)
-
-    # We use a buffer tensor in which we generate noise each loop iteration.
-    # More efficient than creating a new tensor every iteration.
-    noise = torch.randn(action_to_play.shape, device=action_to_play.device)
-
-    # List for storing generations at each step (for later analysis)
-    action_per_step = []
-    # Loop over K (steps)
-    for _ in range(steps):
-        # Part 1: Add noise to the input.
-        noise.normal_(0, 0.005)
-        action_to_play.data.add_(noise.data)
-
-        # Part 2: calculate gradients for the current input.
-        state = -model(taken_context_plus_reward,  action_to_play)
-        state.sum().backward()
-
-        # Apply gradients to our current samples
-        action_to_play.data.add_(step_size * action_to_play.grad.data)
-        action_to_play.grad.detach_()
-        action_to_play.grad.zero_()
-        # inp_features.data.clamp_(min=0, max=10.0)
-
-        action_per_step.append(action_to_play.clone().detach())
-
-    plt.plot(np.arange(len(action_per_step)), action_per_step, color="b")
-    plt.plot(0, action_per_step[0], label="initial_state", marker="o")
-    plt.plot(
-        len(action_per_step) - 1, action_per_step[-1], label="final_state", marker="o"
-    )
-    plt.axhline(0.8, label="maximum", color="b")
-    plt.axhline(0.7, label="minimun", color="r")
-    plt.title(f"Optimal action investigation")
-    plt.xlabel("Steps")
-    plt.ylabel("Action")
-    plt.legend()
-    plt.show()
-
-    test_past_contexts
-    test_context_ids
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[0]))).repeat(128, 1)
+        actions = np.linspace(0, 1, 128)
+        energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
+        plt.plot(actions,energy.detach().numpy())
+        plt.title("Negative reward - Action in the range of 0.7 and 0.8")
+        plt.show()
 
 
-    # Performances of guessing the correct answer:
-    # TEST
-    positive_reward_contexts = np.hstack(
-        [np.vstack(test_past_contexts), np.ones(len(test_past_contexts)).reshape(-1,1)]
-    )
+        #  Action should be between 0.2 and 0.3
+        taken_context = test_past_contexts[test_context_ids==1][0]
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[1]))).repeat(128, 1)
+        actions = np.linspace(0, 1, 128)
+        energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
+        plt.plot(actions,energy.detach().numpy())
+        plt.title("Positive reward- Action in the range of 0.2 and 0.3")
+        plt.show()
 
-    xp_test = torch.tensor(xp_test)
-    yp_test = torch.FloatTensor(test_past_actions)
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[0]))).repeat(128, 1)
+        actions = np.linspace(0, 1, 128)
+        energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
+        plt.plot(actions,energy.detach().numpy())
+        plt.title("Negative reward - Action in the range of 0.2 and 0.3")
+        plt.show()
 
-    final_results = []
-    for positive_reward_context,context_id in zip(positive_reward_contexts,test_context_ids):
-        positive_reward_context = torch.FloatTensor(positive_reward_context)
+        # Test
+        steps = 100
+        step_size = 0.2
+
+        taken_context = test_past_contexts[test_context_ids==0][0]
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[1])))
+
         action_to_play = torch.rand(1)
 
         model.eval()
@@ -712,20 +434,300 @@ if __name__ == "__main__":
             action_to_play.data.add_(noise.data)
 
             # Part 2: calculate gradients for the current input.
-            state = -model(positive_reward_context, action_to_play)
+            state = -model(taken_context_plus_reward,  action_to_play)
             state.sum().backward()
 
             # Apply gradients to our current samples
             action_to_play.data.add_(step_size * action_to_play.grad.data)
             action_to_play.grad.detach_()
             action_to_play.grad.zero_()
+            # inp_features.data.clamp_(min=0, max=10.0)
 
-        final_action = action_to_play.clone().detach().item()
+            action_per_step.append(action_to_play.clone().detach())
 
-        if context_id == 0:
-            final_results.append(0.7<=final_action<=0.8)
-        else:
-            final_results.append(0.2 <= final_action <= 0.3)
+        plt.plot(np.arange(len(action_per_step)), action_per_step, color="b")
+        plt.plot(0, action_per_step[0], label="initial_state", marker="o")
+        plt.plot(
+            len(action_per_step) - 1, action_per_step[-1], label="final_state", marker="o"
+        )
+        plt.axhline(0.8, label="maximum", color="b")
+        plt.axhline(0.7, label="minimun", color="r")
+        plt.title(f"Optimal action investigation")
+        plt.xlabel("Steps")
+        plt.ylabel("Action")
+        plt.legend()
+        plt.show()
 
-    print(f'Accuracy {np.mean(final_results):0.4f}')
+        test_past_contexts
+        test_context_ids
+
+
+        # Performances of guessing the correct answer:
+        # TEST
+        positive_reward_contexts = np.hstack(
+            [np.vstack(test_past_contexts), np.ones(len(test_past_contexts)).reshape(-1,1)]
+        )
+
+        xp_test = torch.tensor(xp_test)
+        yp_test = torch.FloatTensor(test_past_actions)
+
+        final_results = []
+        for positive_reward_context,context_id in zip(positive_reward_contexts,test_context_ids):
+            positive_reward_context = torch.FloatTensor(positive_reward_context)
+            action_to_play = torch.rand(1)
+
+            model.eval()
+            for p in model.parameters():
+                p.requires_grad = False
+            action_to_play.requires_grad = True
+
+            # Enable gradient calculation if not already the case
+            had_gradients_enabled = torch.is_grad_enabled()
+            torch.set_grad_enabled(True)
+
+            # We use a buffer tensor in which we generate noise each loop iteration.
+            # More efficient than creating a new tensor every iteration.
+            noise = torch.randn(action_to_play.shape, device=action_to_play.device)
+
+            # List for storing generations at each step (for later analysis)
+            action_per_step = []
+            # Loop over K (steps)
+            for _ in range(steps):
+                # Part 1: Add noise to the input.
+                noise.normal_(0, 0.005)
+                action_to_play.data.add_(noise.data)
+
+                # Part 2: calculate gradients for the current input.
+                state = -model(positive_reward_context, action_to_play)
+                state.sum().backward()
+
+                # Apply gradients to our current samples
+                action_to_play.data.add_(step_size * action_to_play.grad.data)
+                action_to_play.grad.detach_()
+                action_to_play.grad.zero_()
+
+            final_action = action_to_play.clone().detach().item()
+
+            if context_id == 0:
+                final_results.append(0.7<=final_action<=0.8)
+            else:
+                final_results.append(0.2 <= final_action <= 0.3)
+
+        print(f'Accuracy {np.mean(final_results):0.4f}')
+
+
+    if True:
+        num_epochs = 24
+        sample_size = 2
+        lr = 1e-3
+
+        model = EBMModel(in_features_size=3)
+
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+        scheduler = optim.lr_scheduler.StepLR(
+            optimizer, step_size=30, gamma=0.1
+        )  # Exponential decay over epochs
+
+        xp = np.hstack(
+            [np.vstack(past_contexts), np.vstack(past_rewards)]
+        )
+        xp = torch.tensor(xp)
+        yp = torch.FloatTensor(past_actions)
+
+        xp_eval = np.hstack(
+            [
+                np.vstack(eval_past_contexts),
+                np.vstack(eval_past_rewards),
+            ]
+        )
+        xp_eval = torch.tensor(xp_eval)
+        yp_eval = torch.FloatTensor(eval_past_actions)
+
+        taken_context_plus_reward_a = torch.FloatTensor(
+            np.hstack((test_past_contexts[test_context_ids == 0][0], [1]))).repeat(128, 1)
+
+        taken_context_plus_reward_b = torch.FloatTensor(
+            np.hstack((test_past_contexts[test_context_ids == 1][0], [1]))).repeat(128, 1)
+
+        action_space = np.linspace(0, 1, 128)
+        ims = []
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        for epoch in range(num_epochs):
+            model.eval()
+
+            energy = model(taken_context_plus_reward_a, torch.FloatTensor(action_space))
+
+            im1, = ax.plot(action_space, energy.detach().numpy())
+            im2 = ax.annotate(f"Epoch {str(epoch).zfill(2)}", (0, 1), xycoords="axes fraction", xytext=(10, -10),
+                              textcoords="offset points", ha="left", va="top", animated=True)
+            ims.append([im1, im2])
+
+            model.train()
+            permutation = torch.randperm(xp.size()[0])
+            xp = xp[permutation, :]
+            yp = yp[permutation]
+            running_loss = []
+
+            for xp_batch, yp_batch in zip(xp.split(sample_size), yp.split(sample_size)):
+                optimizer.zero_grad()
+                y = model(xp_batch,yp_batch)
+                loss = y.mean()
+                loss.backward()
+                optimizer.step()
+                running_loss.append(loss.item())
+
+
+
+            scheduler.step()
+
+            # Evaluation
+            model.eval()
+            eval_running_loss = []
+            for xp_batch, yp_batch in zip(xp_eval.split(sample_size), yp_eval.split(sample_size)):
+                y = model(xp_batch, yp_batch)
+                loss = y.mean()
+                eval_running_loss.append(loss.item())
+
+            scheduler.step()
+            print(
+                f"Epoch {epoch} avg training loss {np.mean(running_loss):0.4f} evaluation loss {np.mean(eval_running_loss):0.4f}"
+            )
+            metric_watcher["running_loss"].append(np.mean(running_loss))
+            metric_watcher["eval_running_loss"].append(np.mean(eval_running_loss))
+
+        ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
+                                        repeat_delay=1000)
+        writergif = animation.PillowWriter(fps=10)
+        ani.save('movie.gif', writer=writergif)
+
+        for metric_name in metric_watcher.keys():
+            plt.plot(
+                np.arange(len(metric_watcher[metric_name])),
+                metric_watcher[metric_name],
+                label=metric_name,
+            )
+
+        plt.legend()
+        plt.show()
+
+        # TEST
+        xp_test = np.hstack(
+            [np.vstack(test_past_contexts), np.vstack(test_past_rewards)]
+        )
+        xp_test = torch.tensor(xp_test)
+        yp_test = torch.FloatTensor(test_past_actions)
+
+        model.eval()
+        test_running_loss = []
+
+        for xp_batch, yp_batch in zip(xp_test.split(sample_size), yp_test.split(sample_size)):
+            y = model(xp_batch, yp_batch)
+            loss = y.mean()
+            test_running_loss.append(loss.item())
+
+        print(
+            f"Test loss {np.mean(test_running_loss):0.4f}"
+        )
+
+        # Plot some shit
+
+        #  Action should be between 0.7 and 0.8
+        taken_context = test_past_contexts[test_context_ids==0][0]
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[1]))).repeat(128, 1)
+        actions = np.linspace(0, 1, 128)
+        energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
+        plt.plot(actions,energy.detach().numpy())
+        plt.title("Positive reward- Action in the range of 0.7 and 0.8")
+        plt.show()
+
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[0]))).repeat(128, 1)
+        actions = np.linspace(0, 1, 128)
+        energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
+        plt.plot(actions,energy.detach().numpy())
+        plt.title("Negative reward - Action in the range of 0.7 and 0.8")
+        plt.show()
+
+
+        #  Action should be between 0.2 and 0.3
+        taken_context = test_past_contexts[test_context_ids==1][0]
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[1]))).repeat(128, 1)
+        actions = np.linspace(0, 1, 128)
+        energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
+        plt.plot(actions,energy.detach().numpy())
+        plt.title("Positive reward- Action in the range of 0.2 and 0.3")
+        plt.show()
+
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[0]))).repeat(128, 1)
+        actions = np.linspace(0, 1, 128)
+        energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
+        plt.plot(actions,energy.detach().numpy())
+        plt.title("Negative reward - Action in the range of 0.2 and 0.3")
+        plt.show()
+
+        # Test
+        steps = 100
+        step_size = 0.2
+
+        taken_context = test_past_contexts[test_context_ids==0][0]
+        taken_context_plus_reward = torch.FloatTensor(np.hstack((taken_context,[1])))
+
+        action_to_play = torch.rand(1)
+
+        model.eval()
+        for p in model.parameters():
+            p.requires_grad = False
+        action_to_play.requires_grad = True
+
+        # Enable gradient calculation if not already the case
+        had_gradients_enabled = torch.is_grad_enabled()
+        torch.set_grad_enabled(True)
+
+        # We use a buffer tensor in which we generate noise each loop iteration.
+        # More efficient than creating a new tensor every iteration.
+        noise = torch.randn(action_to_play.shape, device=action_to_play.device)
+
+        # List for storing generations at each step (for later analysis)
+        action_per_step = []
+        # Loop over K (steps)
+        for _ in range(steps):
+            # Part 1: Add noise to the input.
+            noise.normal_(0, 0.005)
+            action_to_play.data.add_(noise.data)
+
+            # Part 2: calculate gradients for the current input.
+            state = -model(taken_context_plus_reward,  action_to_play)
+            state.sum().backward()
+
+            # Apply gradients to our current samples
+            action_to_play.data.add_(step_size * action_to_play.grad.data)
+            action_to_play.grad.detach_()
+            action_to_play.grad.zero_()
+            # inp_features.data.clamp_(min=0, max=10.0)
+
+            action_per_step.append(action_to_play.clone().detach())
+
+        plt.plot(np.arange(len(action_per_step)), action_per_step, color="b")
+        plt.plot(0, action_per_step[0], label="initial_state", marker="o")
+        plt.plot(
+            len(action_per_step) - 1, action_per_step[-1], label="final_state", marker="o"
+        )
+        plt.axhline(0.8, label="maximum", color="b")
+        plt.axhline(0.7, label="minimun", color="r")
+        plt.title(f"Optimal action investigation")
+        plt.xlabel("Steps")
+        plt.ylabel("Action")
+        plt.legend()
+        plt.show()
+
+
+
+        # Performances of guessing the correct answer:
+        # TEST
+        positive_reward_contexts = np.hstack(
+            [np.vstack(test_past_contexts), np.ones(len(test_past_contexts)).reshape(-1,1)]
+        )
+
+        xp_test = torch.tensor(xp_test)
+        yp_test = torch.FloatTensor(test_past_actions)
 
