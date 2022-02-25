@@ -17,6 +17,8 @@ np.random.seed(random_seed)
 
 """
 Investigation shit
+    - different action range
+    - different type of context (e.g. cirgle)
 """
 class EBMModel(nn.Module):
     def __init__(self, in_features_size=32, hidden_feature_size=[32, 16, 8]):
