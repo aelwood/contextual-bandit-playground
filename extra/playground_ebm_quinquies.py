@@ -16,9 +16,8 @@ random.seed(random_seed)
 np.random.seed(random_seed)
 
 """
-Investigation shit 3
-    - only one context to debug the negative reward
-    - tain just over only positive or only negative -> doesn't work
+Investigation shit 5
+    GO BUG OR GO HOME D:
 """
 class EBMModel(nn.Module):
     def __init__(self, in_features_size=32):
@@ -84,11 +83,12 @@ if __name__ == "__main__":
     # plotting_range = (0, 1)
 
     # Is the action rage somehow important? NO
-    actions_a_range = (4, 6)
-    actions_a_wrong_range_0 = (0, 4)
-    actions_a_wrong_range_1 = (6, 10)
+    actions_a_range = (10, 12)
+    actions_a_wrong_range = (0, 10)
+    actions_b_range = (2, 4)
+    actions_b_wrong_range = (4, 14)
 
-    plotting_range = (-2,20)
+    plotting_range = (-2, 20)
     number_of_points = 1_000
     y_lim= [0, 0.1]
     positive_reward = 1
@@ -102,53 +102,51 @@ if __name__ == "__main__":
         Each context belongs to an action with the following boundaries: [0.7, 0.8], [0.2, 0.3]
     """
 
-    context_vectors, context_ids = make_circles(
+    context_vectors, context_ids = make_blobs(
         n_samples=n_samples,
+        n_features=n_features,
+        centers=centers,
+        cluster_std=0.4,
         shuffle=True,
     )
 
-    mask = context_ids == 0
-    context_ids = context_ids[mask]
-    context_vectors = context_vectors[mask]
+    # context_vectors, context_ids = make_circles(
+    #     n_samples=n_samples,
+    #     shuffle=True,
+    # )
 
     actions_a = np.random.uniform(
         low=actions_a_range[0],
         high=actions_a_range[1],
         size=(int(sum(context_ids == 0) * (1 - percentage_of_wrong_actions)),),
     )
-
-    # DOUBLE RANGE
-    # actions_a_0 = np.random.uniform(
-    #     low=actions_a_range[0],
-    #     high=actions_a_range[1],
-    #     size=(int(sum(context_ids == 0) * (1 - percentage_of_wrong_actions)/2),),
-    # )
-    # actions_a_1 = np.random.uniform(
-    #     low=10,
-    #     high=12,
-    #     size=(int(sum(context_ids == 0) * (1 - percentage_of_wrong_actions)/2),),
-    # )
-    # actions_a = np.hstack([actions_a_0, actions_a_1])
-
-    wrong_action_a_0 = np.random.uniform(
-        low=actions_a_wrong_range_0[0],
-        high=actions_a_wrong_range_0[1],
-        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions/2),),
+    wrong_action_a = np.random.uniform(
+        low=actions_a_wrong_range[0],
+        high=actions_a_wrong_range[1],
+        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions),),
     )
-    wrong_action_a_1 = np.random.uniform(
-        low=actions_a_wrong_range_1[0],
-        high=actions_a_wrong_range_1[1],
-        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions/2),),
-    )
-    wrong_action_a = np.hstack([wrong_action_a_0,wrong_action_a_1])
     played_actions_a = np.hstack([actions_a, wrong_action_a])
-    rewards_a = np.hstack([np.ones(len(actions_a))*positive_reward, np.ones(len(wrong_action_a))*negative_reward])
+    rewards_a = np.hstack([np.ones(len(actions_a)) * positive_reward, np.ones(len(wrong_action_a)) * negative_reward])
 
+    actions_b = np.random.uniform(
+        low=actions_b_range[0],
+        high=actions_b_range[1],
+        size=(int(sum(context_ids == 1) * (1 - percentage_of_wrong_actions)),),
+    )
+    wrong_action_b = np.random.uniform(
+        low=actions_b_wrong_range[0],
+        high=actions_b_wrong_range[1],
+        size=(int(sum(context_ids == 1) * percentage_of_wrong_actions),),
+    )
+    played_actions_b = np.hstack([actions_b, wrong_action_b])
+    rewards_b = np.hstack([np.ones(len(actions_b)) * positive_reward, np.ones(len(wrong_action_b)) * negative_reward])
 
     played_actions = np.zeros(len(context_ids))
     played_actions[context_ids == 0] = played_actions_a
+    played_actions[context_ids == 1] = played_actions_b
     reward = np.zeros(len(context_ids))
     reward[context_ids == 0] = rewards_a
+    reward[context_ids == 1] = rewards_b
 
     shuffling = np.arange(len(reward))
     np.random.shuffle(shuffling)
@@ -157,6 +155,7 @@ if __name__ == "__main__":
     context_ids = context_ids[shuffling]
     played_actions = played_actions[shuffling]
     reward = reward[shuffling]
+
     past_contexts = context_vectors[: int(len(context_vectors) * 0.7)]
     past_actions = played_actions[: int(len(played_actions) * 0.7)]
     past_rewards = reward[: int(len(reward) * 0.7)]
@@ -197,7 +196,6 @@ if __name__ == "__main__":
 
 
     plt.figure(figsize=(16, 9))
-
     x = np.arange(len(played_actions))
     plt.title("Actions")
     plt.plot(
@@ -221,17 +219,27 @@ if __name__ == "__main__":
     # END OF DATASET CREATION
 
     # Fun-ctions
-    def gimme_energy(ax,_taken_context, _model,epoch,batch):
-        context = torch.FloatTensor(_taken_context).repeat(number_of_points, 1)
+    def gimme_energy(ax,_taken_context_a,_taken_context_b, _model,epoch,batch):
         actions = np.linspace(plotting_range[0],plotting_range[1], number_of_points)
-        energy = _model(context,torch.FloatTensor(actions))
 
-        im1, = ax.plot(actions, energy.detach().numpy())
-        im2 = ax.annotate(f"Epoch {str(epoch).zfill(2)}[{str(batch).zfill(2)}]", (0, 1), xycoords="axes fraction", xytext=(10, -10),
+        context_a = torch.FloatTensor(_taken_context_a).repeat(number_of_points, 1)
+        context_b = torch.FloatTensor(_taken_context_b).repeat(number_of_points, 1)
+
+        energy_a = _model(context_a,torch.FloatTensor(actions))
+        energy_b = _model(context_b,torch.FloatTensor(actions))
+
+        im1, = ax.plot(actions, energy_a.detach().numpy())
+        im2, = ax.plot(actions, energy_b.detach().numpy())
+        im3 = ax.annotate(f"Epoch {str(epoch).zfill(2)}[{str(batch).zfill(2)}]", (0, 1), xycoords="axes fraction", xytext=(10, -10),
                           textcoords="offset points", ha="left", va="top", animated=True)
-        return [im1,im2]
+        return [im1,im2,im3]
 
-    def gimme_sample(_model, _context, _steps, _step_size, plot=False):
+    def gimme_sample(_model, _context, id, _steps, _step_size, plot=False):
+        if id ==0:
+            _range = actions_a_range
+        else:
+            _range = actions_b_range
+
         _context = torch.FloatTensor(_context)
         action_to_play = torch.rand(1)
         _model.eval()
@@ -273,8 +281,8 @@ if __name__ == "__main__":
             plt.plot(
                 len(action_per_step) - 1, action_per_step[-1], label="final_state", marker="o"
             )
-            plt.axhline(actions_a_range[1], label="maximum", color="b")
-            plt.axhline(actions_a_range[0], label="minimun", color="r")
+            plt.axhline(_range[1], label="maximum", color="b")
+            plt.axhline(_range[0], label="minimun", color="r")
             plt.title(f"Optimal action investigation")
             plt.xlabel("Steps")
             plt.ylabel("Action")
@@ -286,7 +294,8 @@ if __name__ == "__main__":
     # # # # # # # # # # # # # # # #
     #          EXPERIMENTS        #
     # # # # # # # # # # # # # # # #
-    taken_context = test_past_contexts[test_context_ids == 0][0]
+    taken_context_a = test_past_contexts[test_context_ids == 0][0]
+    taken_context_b = test_past_contexts[test_context_ids == 1][0]
 
     # PARAMETERS
     num_epochs = 50
@@ -308,13 +317,16 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.set_ylim(y_lim)
-    plt.title("Energy function for positive reward action A")
+    plt.title("Energy function for positive reward action A and B")
     plt.ylabel('Energy')
     plt.xlabel('Action')
     plt.axvline(x=actions_a_range[0])
     plt.axvline(x=actions_a_range[1])
+    plt.axvline(x=actions_b_range[0])
+    plt.axvline(x=actions_b_range[1])
 
-    ims.append(gimme_energy(ax, taken_context, model, -1, -1))
+    ims.append(gimme_energy(ax, taken_context_a, taken_context_b, model, -1, -1))
+
     for epoch in range(num_epochs):
         model.train()
         permutation = torch.randperm(xp.size()[0])
@@ -350,7 +362,7 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             running_loss.append(loss.item())
-            ims.append(gimme_energy(ax, taken_context, model, epoch, i))
+            ims.append(gimme_energy(ax, taken_context_a, taken_context_b, model, epoch, i))
         scheduler.step()
 
         # Evaluation
@@ -407,34 +419,46 @@ if __name__ == "__main__":
  # # Plot some shit
 #  Action A
 for z in range(10):
-    _taken_context = test_past_contexts[test_context_ids == 0][z]
-    taken_context_plus_reward = torch.FloatTensor(_taken_context).repeat(number_of_points, 1)
-    actions = np.linspace(plotting_range[0], plotting_range[1], number_of_points)
-    energy = model(taken_context_plus_reward, torch.FloatTensor(actions))
-    plt.plot(actions, energy.detach().numpy())
-plt.title("Energy function for positive rewards action A")
+    for id in range(2):
+        _taken_context = test_past_contexts[test_context_ids == id][z]
+        taken_context_plus_reward = torch.FloatTensor(_taken_context).repeat(number_of_points, 1)
+        actions = np.linspace(plotting_range[0], plotting_range[1], number_of_points)
+        energy = model(taken_context_plus_reward, torch.FloatTensor(actions))
+        plt.plot(actions, energy.detach().numpy())
+plt.title("Energy function for positive rewards action A and B")
 plt.ylabel('Energy')
 plt.xlabel('Action')
 plt.axvline(x=actions_a_range[0])
 plt.axvline(x=actions_a_range[1])
+plt.axvline(x=actions_b_range[0])
+plt.axvline(x=actions_b_range[1])
 plt.show()
 
-taken_context_plus_reward = torch.FloatTensor(taken_context).repeat(number_of_points, 1)
-actions = np.linspace(plotting_range[0],plotting_range[1], number_of_points)
-energy = model(taken_context_plus_reward,torch.FloatTensor(actions))
-plt.plot(actions, energy.detach().numpy())
-plt.title("Energy function for positive reward action A")
-plt.ylabel('Action')
+
+for id in range(2):
+    _taken_context = test_past_contexts[test_context_ids == id][0]
+    taken_context_plus_reward = torch.FloatTensor(_taken_context).repeat(number_of_points, 1)
+    actions = np.linspace(plotting_range[0], plotting_range[1], number_of_points)
+    energy = model(taken_context_plus_reward, torch.FloatTensor(actions))
+    plt.plot(actions, energy.detach().numpy(), label=f'Action {id}')
+plt.title("Energy function for positive rewards action A and B")
+plt.ylabel('Energy')
+plt.xlabel('Action')
+plt.legend()
 plt.axvline(x=actions_a_range[0])
 plt.axvline(x=actions_a_range[1])
+plt.axvline(x=actions_b_range[0])
+plt.axvline(x=actions_b_range[1])
 plt.show()
 
-gimme_sample(model, taken_context, steps, step_size, plot=True)
+for id in range(2):
+    _taken_context = test_past_contexts[test_context_ids == id][0]
+    gimme_sample(model, _taken_context, id, steps, step_size, plot=True)
 
 # Performances of guessing the correct answer:
 final_results = []
-for taken_context in test_past_contexts:
-    final_action = gimme_sample(model, taken_context, steps, step_size, plot=False)
+for test_context,context_id in zip(test_past_contexts,test_context_ids):
+    final_action = gimme_sample(model, test_context,context_id, steps, step_size, plot=False)
     final_results.append(actions_a_range[0] <= final_action <= actions_a_range[1])
 
 print(f'Accuracy {np.mean(final_results):0.4f}')

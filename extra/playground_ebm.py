@@ -168,11 +168,9 @@ if __name__ == "__main__":
     past_actions = played_actions[: int(len(played_actions) * 0.7)]
     past_rewards = reward[: int(len(reward) * 0.7)]
 
-    eval_past_contexts = context_vectors[
-        : int(len(context_vectors) * 0.7) : int(len(context_vectors) * 0.8)
+    eval_past_contexts = context_vectors[int(len(context_vectors) * 0.7) : int(len(context_vectors) * 0.8)
     ]
-    eval_past_actions = played_actions[
-        : int(len(played_actions) * 0.7) : int(len(played_actions) * 0.8)
+    eval_past_actions = played_actions[int(len(played_actions) * 0.7) : int(len(played_actions) * 0.8)
     ]
     eval_past_rewards = reward[: int(len(reward) * 0.7) : int(len(reward) * 0.8)]
 
