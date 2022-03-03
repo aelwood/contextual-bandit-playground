@@ -17,23 +17,43 @@ np.random.seed(random_seed)
 
 """
 Investigation shit 5
-    GO BUG OR GO HOME D:
+    Loss me up
+    It is working with a fake residual alike network for Y
+    We gonna make it work!
 """
 class EBMModel(nn.Module):
     def __init__(self, in_features_size=32):
         super(EBMModel, self).__init__()
         self.g_1 = nn.ModuleList([
-            torch.nn.Linear(in_features_size, 200),
+            torch.nn.Linear(in_features_size, 128),
             torch.nn.Sigmoid(),
-            torch.nn.Linear(200, 100),
+            torch.nn.Dropout(),
+            torch.nn.Linear(128, 128),
             torch.nn.Sigmoid(),
-            torch.nn.Linear(100, 1),
+            torch.nn.Dropout(),
+            torch.nn.Linear(128, 128),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(),
+            torch.nn.Linear(128, 128),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(),
+            torch.nn.Linear(128, 128),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(),
+            torch.nn.Linear(128, 128),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(),
+            torch.nn.Linear(128, 1),
         ])
 
         self.g_2 = nn.ModuleList([
-            torch.nn.Linear(1, 200),
+            torch.nn.Linear(1, 256),
             torch.nn.Sigmoid(),
-            torch.nn.Linear(200, 1),
+            torch.nn.Dropout(),
+            torch.nn.Linear(256, 256),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(),
+            torch.nn.Linear(256, 1),
         ])
 
 
@@ -48,24 +68,44 @@ class EBMModel(nn.Module):
                 layer.bias.data.fill_(0.01)
 
 
-    def forward(self, x, y):
+    def forward(self, x, y,yo=False):
         """
         :param x: [context,reward]
         :param y: [action]
         :return: energy
         """
         x = x.float()
+        x_prev = None
         for i in range(len(self.g_1)):
+            if isinstance(self.g_1[i], nn.Linear):
+                if x_prev is not None:
+                    x = x + x_prev
+
             x = self.g_1[i](x)
+            if isinstance(self.g_1[i], nn.Linear):
+                x_prev = x.clone()
         x = x.squeeze(dim=-1)
 
-        y = y.float()
-        y = y.unsqueeze(1)
+        yn = y.float()
+        yn = yn.unsqueeze(1)
         for i in range(len(self.g_2)):
-            y = self.g_2[i](y)
+            yn = self.g_2[i](yn)
+        yn = yn.squeeze(dim=-1)
+        if yo:
+            for gamma, (_y,_yn) in enumerate(zip(y,yn)):
+                print(f"{_y} + {_yn} = {_y + _yn}")
+                if gamma ==2:
+                    break
+        y = y + yn
         y = y.squeeze(dim=-1)
 
+
+
         energy = torch.abs(x-y)
+        # energy = x-y
+        # energy =1 / 2 * torch.pow(x - y, 2)
+        # energy = torch.log(1 + torch.exp(x-y))
+
 
         return energy
 
@@ -83,14 +123,18 @@ if __name__ == "__main__":
     # plotting_range = (0, 1)
 
     # Is the action rage somehow important? NO
-    actions_a_range = (10, 12)
-    actions_a_wrong_range = (0, 10)
+    actions_a_range = (8, 10)
+    actions_a_wrong_range_0 = (6, 8)
+    actions_a_wrong_range_1 = (10, 12)
+
     actions_b_range = (2, 4)
-    actions_b_wrong_range = (4, 14)
+    actions_b_wrong_range_0 = (0,2)
+    actions_b_wrong_range_1 = (4, 6)
 
     plotting_range = (-2, 20)
     number_of_points = 1_000
-    y_lim= [0, 0.1]
+
+    y_lim= [0, 20]
     positive_reward = 1
     negative_reward = -1
 
@@ -102,29 +146,27 @@ if __name__ == "__main__":
         Each context belongs to an action with the following boundaries: [0.7, 0.8], [0.2, 0.3]
     """
 
-    context_vectors, context_ids = make_blobs(
+    context_vectors, context_ids = make_circles(
         n_samples=n_samples,
-        n_features=n_features,
-        centers=centers,
-        cluster_std=0.4,
         shuffle=True,
     )
-
-    # context_vectors, context_ids = make_circles(
-    #     n_samples=n_samples,
-    #     shuffle=True,
-    # )
 
     actions_a = np.random.uniform(
         low=actions_a_range[0],
         high=actions_a_range[1],
         size=(int(sum(context_ids == 0) * (1 - percentage_of_wrong_actions)),),
     )
-    wrong_action_a = np.random.uniform(
-        low=actions_a_wrong_range[0],
-        high=actions_a_wrong_range[1],
-        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions),),
+    wrong_action_a_0 = np.random.uniform(
+        low=actions_a_wrong_range_0[0],
+        high=actions_a_wrong_range_0[1],
+        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
     )
+    wrong_action_a_1 = np.random.uniform(
+        low=actions_a_wrong_range_1[0],
+        high=actions_a_wrong_range_1[1],
+        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
+    )
+    wrong_action_a = np.hstack([wrong_action_a_0, wrong_action_a_1])
     played_actions_a = np.hstack([actions_a, wrong_action_a])
     rewards_a = np.hstack([np.ones(len(actions_a)) * positive_reward, np.ones(len(wrong_action_a)) * negative_reward])
 
@@ -133,11 +175,17 @@ if __name__ == "__main__":
         high=actions_b_range[1],
         size=(int(sum(context_ids == 1) * (1 - percentage_of_wrong_actions)),),
     )
-    wrong_action_b = np.random.uniform(
-        low=actions_b_wrong_range[0],
-        high=actions_b_wrong_range[1],
-        size=(int(sum(context_ids == 1) * percentage_of_wrong_actions),),
+    wrong_action_b_0 = np.random.uniform(
+        low=actions_b_wrong_range_0[0],
+        high=actions_b_wrong_range_0[1],
+        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
     )
+    wrong_action_b_1 = np.random.uniform(
+        low=actions_b_wrong_range_1[0],
+        high=actions_b_wrong_range_1[1],
+        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
+    )
+    wrong_action_b = np.hstack([wrong_action_b_0, wrong_action_b_1])
     played_actions_b = np.hstack([actions_b, wrong_action_b])
     rewards_b = np.hstack([np.ones(len(actions_b)) * positive_reward, np.ones(len(wrong_action_b)) * negative_reward])
 
@@ -220,6 +268,7 @@ if __name__ == "__main__":
 
     # Fun-ctions
     def gimme_energy(ax,_taken_context_a,_taken_context_b, _model,epoch,batch):
+        _model.eval()
         actions = np.linspace(plotting_range[0],plotting_range[1], number_of_points)
 
         context_a = torch.FloatTensor(_taken_context_a).repeat(number_of_points, 1)
@@ -288,8 +337,17 @@ if __name__ == "__main__":
             plt.ylabel("Action")
             plt.legend()
             plt.show()
-        print(final_action)
+        # print(final_action)
         return final_action
+
+
+    def what_a_loss(y_pos, y_neg):
+        margin = 0.2
+        # return (torch.pow(y_pos, 2) - (torch.nn.functional.relu(margin - torch.pow(y_neg, 2)))).mean() # HINGE LOSS
+        # return torch.pow((1 + torch.exp(-(y_pos-y_neg))),-1).mean() # MCE
+        return torch.log(1 + torch.exp(y_pos-y_neg)).mean() # LOG
+
+
 
     # # # # # # # # # # # # # # # #
     #          EXPERIMENTS        #
@@ -300,18 +358,18 @@ if __name__ == "__main__":
     # PARAMETERS
     num_epochs = 50
     sample_size = 256
-    lr = 0.002
+    lr = 0.001
     steps = 100
     step_size = 10
-    margin = 0.2
 
-    model = EBMModel(in_features_size=2)
+    model = EBMModel(in_features_size=n_features)
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = optim.lr_scheduler.StepLR(
-        optimizer, step_size=30, gamma=0.1
+        optimizer, step_size=500, gamma=0.1
     )  # Exponential decay over epochs
     metric_watcher = defaultdict(list)
+    loss_fun = what_a_loss
 
     ims = []
     fig = plt.figure()
@@ -333,8 +391,9 @@ if __name__ == "__main__":
         xp = xp[permutation, :]
         yp = yp[permutation]
         running_loss = []
-        neg_run_loss = []
+
         for i, (xp_batch, yp_batch) in enumerate(zip(xp.split(sample_size), yp.split(sample_size))):
+            model.train()
             # lallallero
 
             positive_reward_mask = xp_batch[:,-1]==positive_reward
@@ -354,15 +413,17 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()
 
+            # for context,action in zip(positive_xp_batch,positive_yp_batch):
+            #     print(f"{context} : {action}")
+
             y_pos = model(positive_xp_batch, positive_yp_batch)
             y_neg = model(negative_xp_batch, negative_yp_batch)
 
-            loss = (torch.pow(y_pos,2) - (torch.nn.functional.relu(margin - torch.pow(y_neg,2)))).mean()
+            loss = loss_fun(y_pos,y_neg)
 
             loss.backward()
             optimizer.step()
             running_loss.append(loss.item())
-            neg_run_loss.append(y_neg.mean().item())
             ims.append(gimme_energy(ax, taken_context_a, taken_context_b, model, epoch, i))
         scheduler.step()
 
@@ -379,30 +440,30 @@ if __name__ == "__main__":
             negative_yp_batch = yp_batch[negative_reward_mask]
 
             min_len = min(len(positive_xp_batch), len(negative_xp_batch))
-            print(f"{positive_yp_batch.min()}   {positive_yp_batch.max()}")
+
             positive_xp_batch = positive_xp_batch[:min_len, :]
             positive_yp_batch = positive_yp_batch[:min_len]
             negative_xp_batch = negative_xp_batch[:min_len, :]
             negative_yp_batch = negative_yp_batch[:min_len]
 
-            y_pos = model(positive_xp_batch, positive_yp_batch)
-            y_neg = model(negative_xp_batch, negative_yp_batch)
+            y_pos = model(positive_xp_batch, positive_yp_batch,False)
+            y_neg = model(negative_xp_batch, negative_yp_batch,False)
 
-            loss = (torch.pow(y_pos,2) - (torch.nn.functional.relu(margin - torch.pow(y_neg,2)))).mean()
+            loss = loss_fun(y_pos,y_neg)
 
             eval_running_loss.append(loss.item())
 
         scheduler.step()
         print(
-            f"Epoch {epoch} avg training loss {np.mean(running_loss):0.4f} evaluation loss {np.mean(eval_running_loss):0.4f} {np.mean(neg_run_loss):0.4f}"
+            f"Epoch {epoch} avg training loss {np.mean(running_loss):0.4f} evaluation loss {np.mean(eval_running_loss):0.4f}"
         )
         metric_watcher["running_loss"].append(np.mean(running_loss))
         metric_watcher["eval_running_loss"].append(np.mean(eval_running_loss))
 
-    ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
-                                    repeat_delay=1000)
-    writergif = animation.PillowWriter(fps=10)
-    ani.save('movie.gif', writer=writergif)
+    # ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
+    #                                 repeat_delay=1000)
+    # writergif = animation.PillowWriter(fps=10)
+    # ani.save('movie.gif', writer=writergif)
 
     plt.clf()
     plt.close()
@@ -426,6 +487,7 @@ for z in range(10):
         actions = np.linspace(plotting_range[0], plotting_range[1], number_of_points)
         energy = model(taken_context_plus_reward, torch.FloatTensor(actions))
         plt.plot(actions, energy.detach().numpy())
+
 plt.title("Energy function for positive rewards action A and B")
 plt.ylabel('Energy')
 plt.xlabel('Action')
@@ -452,17 +514,17 @@ plt.axvline(x=actions_b_range[0])
 plt.axvline(x=actions_b_range[1])
 plt.show()
 
-for id in range(2):
-    _taken_context = test_past_contexts[test_context_ids == id][0]
-    gimme_sample(model, _taken_context, id, steps, step_size, plot=True)
-
-# Performances of guessing the correct answer:
-final_results = []
-for test_context,context_id in zip(test_past_contexts,test_context_ids):
-    final_action = gimme_sample(model, test_context,context_id, steps, step_size, plot=False)
-    if context_id==0:
-        final_results.append(actions_a_range[0] <= final_action <= actions_a_range[1])
-    else:
-        final_results.append(actions_b_range[0] <= final_action <= actions_b_range[1])
-
-print(f'Accuracy {np.mean(final_results):0.4f}')
+# for id in range(2):
+#     _taken_context = test_past_contexts[test_context_ids == id][0]
+#     gimme_sample(model, _taken_context, id, steps, step_size, plot=True)
+#
+# # Performances of guessing the correct answer:
+# final_results = []
+# for test_context,context_id in zip(test_past_contexts,test_context_ids):
+#     final_action = gimme_sample(model, test_context,context_id, steps, step_size, plot=False)
+#     if context_id==0:
+#         final_results.append(actions_a_range[0] <= final_action <= actions_a_range[1])
+#     else:
+#         final_results.append(actions_b_range[0] <= final_action <= actions_b_range[1])
+#
+# print(f'Accuracy {np.mean(final_results):0.4f}')
