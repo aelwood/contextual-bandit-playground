@@ -57,27 +57,33 @@ def simulate(
 
 
 def tes_EBM():
-    environment = CirclesSyntheticEnvironment(
-                number_of_different_context=2,
-                n_context_features=2,
-                number_of_observations=2_000,
-                time_perturbation_function=lambda time, mu: mu,
-                fixed_variances=0.6,
-                environment_best_action_offset=2,
-                action_offset= 4,
-                mul_factor= 1,
-                name="2c_dm_fst_circ",
-            )
+    # environment = CirclesSyntheticEnvironment(
+    #             number_of_different_context=2,
+    #             n_context_features=2,
+    #             number_of_observations=2_000,
+    #             time_perturbation_function=lambda time, mu: mu,
+    #             fixed_variances=0.6,
+    #             environment_best_action_offset=2,
+    #             action_offset= 4,
+    #             mul_factor= 1,
+    #             name="2c_dm_fst_circ",
+    #         )
+
+    environment = SyntheticEnvironment(
+        number_of_different_context=2,
+        number_of_observations=2_000,
+        time_perturbation_function=lambda time, mu: mu,
+    )
 
     policy = EBMPolicy(
-        name=f'EBM_TEST',
+        name=f'EBM_new',
     )
 
     evaluator = Evaluator(
-        run_name=f"{policy.name}_TEST9l",
+        run_name=f"{policy.name}_logloss_test",
         save_data=True,
-        plot_data=False,
-        use_mlflow=True,
+        plot_data=True,
+        use_mlflow=False,
         policy=policy,
         environment=environment,
         experiment_name=environment.name,

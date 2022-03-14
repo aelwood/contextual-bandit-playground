@@ -340,10 +340,16 @@ if __name__ == "__main__":
 
 
     def what_a_loss(y_pos, y_neg):
-        # margin = 0.2
-        # return (torch.pow(y_pos, 2) - (torch.nn.functional.relu(margin - torch.pow(y_neg, 2)))).mean() # HINGE LOSS
+        margin = 0.2
+        #return (torch.pow(y_pos, 2) - (torch.nn.functional.relu(margin - torch.pow(y_neg, 2)))).mean() # HINGE LOSS Marco (actually square square)
+        # return (torch.pow(y_pos, 2) - (torch.nn.functional.relu(margin - torch.pow(min(y_neg), 2)))).mean() # HINGE LOSS 2 Marco (actually square square)
+        #return torch.nn.functional.relu(margin + y_pos - y_neg).mean() # HINGE LOSS Adam
+        #return torch.nn.functional.relu(margin + y_pos - min(y_neg)).mean() # HINGE LOSS 2 Adam
         # return torch.pow((1 + torch.exp(-(y_pos-y_neg))),-1).mean() # MCE
         return torch.log(1 + torch.exp(y_pos-y_neg)).mean() # LOG
+        #return torch.log(1 + torch.exp(y_pos-min(y_neg))).mean() # LOG (doesn't work)
+        #return torch.log(1 + torch.exp(y_pos.mean()-y_neg.mean())) # LOG mean before (doesn't work)
+        # return y_pos.mean()-y_neg.mean()  # ~perceptron
 
 
 
@@ -355,7 +361,7 @@ if __name__ == "__main__":
 
     # PARAMETERS
     num_epochs = 50
-    sample_size = 256
+    sample_size = 128
     lr = 0.05
     steps = 100
     step_size = 10
@@ -458,10 +464,10 @@ if __name__ == "__main__":
         metric_watcher["running_loss"].append(np.mean(running_loss))
         metric_watcher["eval_running_loss"].append(np.mean(eval_running_loss))
 
-    # ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
-    #                                 repeat_delay=1000)
-    # writergif = animation.PillowWriter(fps=10)
-    # ani.save('movie.gif', writer=writergif)
+    ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
+                                    repeat_delay=1000)
+    writergif = animation.PillowWriter(fps=10)
+    ani.save('movie.gif', writer=writergif)
 
     plt.clf()
     plt.close()
