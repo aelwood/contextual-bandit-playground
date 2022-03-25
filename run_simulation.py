@@ -71,12 +71,15 @@ def tes_EBM():
 
     environment = SyntheticEnvironment(
         number_of_different_context=2,
-        number_of_observations=2_000,
+        number_of_observations=3_000,
         time_perturbation_function=lambda time, mu: mu,
+        # fixed_variances=0.2,
+        # action_offset= 3
     )
 
     policy = EBMPolicy(
         name=f'EBM_new',
+        warm_up=1000
     )
 
     evaluator = Evaluator(

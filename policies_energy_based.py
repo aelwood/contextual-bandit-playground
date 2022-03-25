@@ -108,9 +108,9 @@ class EBMModelImplicitRegression(nn.Module):
         y = y + yn
         y = y.squeeze(dim=-1)
 
-        energy = torch.abs(x-y)
+        #energy = torch.abs(x-y)
         # energy = x-y
-        # energy =1 / 2 * torch.pow(x - y, 2)
+        energy =1 / 2 * torch.pow(x - y, 2)
         # energy = torch.log(1 + torch.exp(x-y))
 
         return energy
@@ -232,6 +232,8 @@ class EBMPolicyNaive(PolicyABC):
         pass
 
 
+
+
 class EBMPolicy(PolicyABC):
     def __init__(
         self,
@@ -241,7 +243,7 @@ class EBMPolicy(PolicyABC):
         lr=0.05,
         sample_size = 128,
         warm_up=64,
-        num_epochs = 100,
+        num_epochs = 50,
         device=torch.device("cpu"),
     ):
         self.past_rewards = []
@@ -257,7 +259,7 @@ class EBMPolicy(PolicyABC):
         self.name = name
 
         self.positive_reward = 1
-        self.negative_reward = 0
+        self.negative_reward = -1
 
         self.ebm_estimator = ebm_estimator_class(
             in_features_size=self.adjusted_feat_size
@@ -267,34 +269,39 @@ class EBMPolicy(PolicyABC):
             self.optimizer, step_size=30, gamma=0.1
         )
 
-    def _get_loss(self):
-        def loss(y_pos, y_neg):
-            return torch.log(1 + torch.exp(y_pos - y_neg)).mean()
-        return loss
-
     def notify_event(self, context, action, stochastic_reward):
         self.past_contexts.append(context)
-        self.past_rewards.append(int(stochastic_reward))
+        if int(stochastic_reward)==0:
+            self.past_rewards.append(-1)
+        else:
+            self.past_rewards.append(int(stochastic_reward))
         self.past_actions.append(action)
 
     def train(self):
         sample_size = self.sample_size
         if self.warm_up > len(self.past_contexts):
             return None
-        self.ebm_estimator.reinitialize_weights()
+        #self.ebm_estimator.reinitialize_weights()
+
+        context_to_train = self.past_contexts[self.last_training_idx:]
+        actions_to_train = self.past_actions[self.last_training_idx:]
+        rewards_to_train = self.past_rewards[self.last_training_idx:]
+
+        self.ebm_estimator.train()
+
+        for p in self.ebm_estimator.parameters():
+            p.requires_grad = True
+
+        xp = np.hstack(
+            [np.vstack(context_to_train), np.vstack(rewards_to_train)]
+        )
+        xp = torch.tensor(xp)
+        yp = torch.FloatTensor(actions_to_train)
+
+        def what_a_loss(y_pos, y_neg):
+            return
 
         for epoch in range(self.num_epochs):
-            context_to_train = self.past_contexts[self.last_training_idx:]
-            actions_to_train = self.past_actions[self.last_training_idx:]
-            rewards_to_train = self.past_rewards[self.last_training_idx:]
-
-            self.ebm_estimator.train()
-
-            xp = np.hstack(
-                [np.vstack(context_to_train), np.vstack(rewards_to_train)]
-            )
-            xp = torch.tensor(xp)
-            yp = torch.FloatTensor(actions_to_train)
 
             permutation = torch.randperm(xp.size()[0])
 
@@ -303,8 +310,8 @@ class EBMPolicy(PolicyABC):
 
             running_loss = []
             for i, (xp_batch, yp_batch) in enumerate(zip(xp.split(sample_size), yp.split(sample_size))):
-                xp_batch.requires_grad=True
-                yp_batch.requires_grad=True
+                # xp_batch.requires_grad=True
+                # yp_batch.requires_grad=True
 
                 positive_reward_mask = xp_batch[:, -1] == self.positive_reward
                 negative_reward_mask = xp_batch[:, -1] == self.negative_reward
@@ -321,6 +328,8 @@ class EBMPolicy(PolicyABC):
                 #  ie try with a bigger warmup
 
                 min_len = min(len(positive_xp_batch), len(negative_xp_batch))
+
+                #print(min_len)
                 if min_len==0:
                     continue # TODO check
 
@@ -334,7 +343,7 @@ class EBMPolicy(PolicyABC):
                 y_pos = self.ebm_estimator(positive_xp_batch, positive_yp_batch)
                 y_neg = self.ebm_estimator(negative_xp_batch, negative_yp_batch)
 
-                loss = self._get_loss()(y_pos, y_neg)
+                loss = torch.log(1 + torch.exp(y_pos - y_neg)).mean()
                 loss.backward()
                 self.optimizer.step()
                 running_loss.append(loss.item())
@@ -343,18 +352,21 @@ class EBMPolicy(PolicyABC):
                 f"Epoch {epoch} avg training loss {np.mean(running_loss):0.4f}"
             )
             self.scheduler.step()
+        self.ebm_estimator.eval()
+        1--1
 
     def get_action(self, context):
 
         if self.warm_up >= len(self.past_contexts):
-            return np.random.rand()*10
+            return np.random.rand()*5
 
         steps = 100
-        step_size = 1 # TODO discuss
+        alpha = 5
+        step_size = 0.2 # TODO discuss
         #taken_context_plus_reward = torch.FloatTensor(np.hstack((context, [1])))
         context = torch.FloatTensor(context)
 
-        action_to_play = torch.rand(1)*10
+        action_to_play = torch.rand(1)*5
 
         self.ebm_estimator.eval()
         for p in self.ebm_estimator.parameters():
@@ -371,13 +383,16 @@ class EBMPolicy(PolicyABC):
 
         # List for storing generations at each step (for later analysis)
         # Loop over K (steps)
+        action_per_step = []
         for _ in range(steps):
             # Part 1: Add noise to the input.
+            action_per_step.append(action_to_play.clone().detach())
+
             noise.normal_(0, 0.005)
             action_to_play.data.add_(noise.data)
 
             # Part 2: calculate gradients for the current input.
-            state = -self.ebm_estimator(context, action_to_play)
+            state = -self.ebm_estimator(context, action_to_play) / alpha
             state.sum().backward()
 
             # Apply gradients to our current samples
@@ -391,8 +406,24 @@ class EBMPolicy(PolicyABC):
     def get_params(self):
         pass
 
+
 def plot_energy(context, model):
-    actions = np.linspace(0, 10, 100)
+    actions = np.linspace(-10, 10, 100)
     energy = model(context, torch.FloatTensor(actions))
     plt.plot(actions, energy.detach().numpy())
+    plt.show()
+
+
+def plot_sampling(action_per_step, _range):
+    plt.plot(np.arange(len(action_per_step)), action_per_step, color="b")
+    plt.plot(0, action_per_step[0], label="initial_state", marker="o")
+    plt.plot(
+        len(action_per_step) - 1, action_per_step[-1], label="final_state", marker="o"
+    )
+    plt.axhline(_range[1], label="maximum", color="b")
+    plt.axhline(_range[0], label="minimun", color="r")
+    plt.title(f"Optimal action investigation")
+    plt.xlabel("Steps")
+    plt.ylabel("Action")
+    plt.legend()
     plt.show()

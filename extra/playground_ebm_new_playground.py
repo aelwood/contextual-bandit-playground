@@ -2,6 +2,7 @@ from matplotlib import pyplot as plt
 import torch
 import torch.nn as nn
 import numpy as np
+import pickle
 import random
 
 from collections import defaultdict
@@ -50,6 +51,7 @@ class EBMModel(nn.Module):
             torch.nn.Linear(128, 1),
         ])
 
+
     def reinitialize_weights(self):
         for layer in self.g_1:
             if isinstance(layer, nn.Linear):
@@ -59,6 +61,7 @@ class EBMModel(nn.Module):
             if isinstance(layer, nn.Linear):
                 torch.nn.init.xavier_uniform(layer.weight)
                 layer.bias.data.fill_(0.01)
+
 
     def forward(self, x, y,yo=False):
         """
@@ -87,7 +90,7 @@ class EBMModel(nn.Module):
 
 
         #energy = torch.abs(x-y)
-        # energy = x-y
+        #energy = x-y
         energy =1 / 2 * torch.pow(x - y, 2)
         #energy = torch.log(1 + torch.exp(x-y))
 
@@ -97,7 +100,7 @@ class EBMModel(nn.Module):
 
 if __name__ == "__main__":
     n_samples = 1_000
-    n_features = 2
+    n_features = 3
     centers = 2
     percentage_of_wrong_actions = 0.82
 
@@ -108,18 +111,18 @@ if __name__ == "__main__":
     # plotting_range = (0, 1)
 
     # Is the action rage somehow important? NO
-    actions_a_range = (8, 10)
-    actions_a_wrong_range_0 = (6, 8)
-    actions_a_wrong_range_1 = (10, 12)
+    actions_a_range = (0.5, 1.5)
+    # actions_a_wrong_range_0 = (6, 8)
+    # actions_a_wrong_range_1 = (10, 12)
 
-    actions_b_range = (2, 4)
-    actions_b_wrong_range_0 = (0,2)
-    actions_b_wrong_range_1 = (4, 6)
+    actions_b_range = (2.5, 3.5)
+    # actions_b_wrong_range_0 = (0,2)
+    # actions_b_wrong_range_1 = (4, 6)
 
-    plotting_range = (-2, 20)
+    plotting_range = (-2, 10)
     number_of_points = 1_000
 
-    y_lim= [0, 20]
+    y_lim= [0, 5]
     positive_reward = 1
     negative_reward = -1
 
@@ -131,74 +134,80 @@ if __name__ == "__main__":
         Each context belongs to an action with the following boundaries: [0.7, 0.8], [0.2, 0.3]
     """
 
-    context_vectors, context_ids = make_blobs(
-        n_samples=n_samples,
-        n_features=n_features,
-        centers=centers,
-        cluster_std=0.4,
-        shuffle=True,
-    )
-
-    # context_vectors[context_ids == 0] = context_vectors[context_ids == 0] * 0 + 2
-    # context_vectors[context_ids == 1] = context_vectors[context_ids == 1] * 0 - 2
-
-    # context_vectors, context_ids = make_circles(
+    # context_vectors, context_ids = make_blobs(
     #     n_samples=n_samples,
+    #     n_features=n_features,
+    #     centers=centers,
+    #     cluster_std=0.4,
     #     shuffle=True,
     # )
+    #
+    # # context_vectors[context_ids == 0] = context_vectors[context_ids == 0] * 0 + 2
+    # # context_vectors[context_ids == 1] = context_vectors[context_ids == 1] * 0 - 2
+    #
+    # # context_vectors, context_ids = make_circles(
+    # #     n_samples=n_samples,
+    # #     shuffle=True,
+    # # )
+    #
+    # actions_a = np.random.uniform(
+    #     low=actions_a_range[0],
+    #     high=actions_a_range[1],
+    #     size=(int(sum(context_ids == 0) * (1 - percentage_of_wrong_actions)),),
+    # )
+    # wrong_action_a_0 = np.random.uniform(
+    #     low=actions_a_wrong_range_0[0],
+    #     high=actions_a_wrong_range_0[1],
+    #     size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
+    # )
+    # wrong_action_a_1 = np.random.uniform(
+    #     low=actions_a_wrong_range_1[0],
+    #     high=actions_a_wrong_range_1[1],
+    #     size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
+    # )
+    # wrong_action_a = np.hstack([wrong_action_a_0, wrong_action_a_1])
+    # played_actions_a = np.hstack([actions_a, wrong_action_a])
+    # rewards_a = np.hstack([np.ones(len(actions_a)) * positive_reward, np.ones(len(wrong_action_a)) * negative_reward])
+    #
+    # actions_b = np.random.uniform(
+    #     low=actions_b_range[0],
+    #     high=actions_b_range[1],
+    #     size=(int(sum(context_ids == 1) * (1 - percentage_of_wrong_actions)),),
+    # )
+    # wrong_action_b_0 = np.random.uniform(
+    #     low=actions_b_wrong_range_0[0],
+    #     high=actions_b_wrong_range_0[1],
+    #     size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
+    # )
+    # wrong_action_b_1 = np.random.uniform(
+    #     low=actions_b_wrong_range_1[0],
+    #     high=actions_b_wrong_range_1[1],
+    #     size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
+    # )
+    # wrong_action_b = np.hstack([wrong_action_b_0, wrong_action_b_1])
+    # played_actions_b = np.hstack([actions_b, wrong_action_b])
+    # rewards_b = np.hstack([np.ones(len(actions_b)) * positive_reward, np.ones(len(wrong_action_b)) * negative_reward])
 
-    actions_a = np.random.uniform(
-        low=actions_a_range[0],
-        high=actions_a_range[1],
-        size=(int(sum(context_ids == 0) * (1 - percentage_of_wrong_actions)),),
-    )
-    wrong_action_a_0 = np.random.uniform(
-        low=actions_a_wrong_range_0[0],
-        high=actions_a_wrong_range_0[1],
-        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
-    )
-    wrong_action_a_1 = np.random.uniform(
-        low=actions_a_wrong_range_1[0],
-        high=actions_a_wrong_range_1[1],
-        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
-    )
-    wrong_action_a = np.hstack([wrong_action_a_0, wrong_action_a_1])
-    played_actions_a = np.hstack([actions_a, wrong_action_a])
-    rewards_a = np.hstack([np.ones(len(actions_a)) * positive_reward, np.ones(len(wrong_action_a)) * negative_reward])
+    # played_actions = np.zeros(len(context_ids))
+    # played_actions[context_ids == 0] = played_actions_a
+    # played_actions[context_ids == 1] = played_actions_b
+    # reward = np.zeros(len(context_ids))
+    # reward[context_ids == 0] = rewards_a
+    # reward[context_ids == 1] = rewards_b
+    #
+    # shuffling = np.arange(len(reward))
+    # np.random.shuffle(shuffling)
+    #
+    # context_vectors = context_vectors[shuffling]
+    # context_ids = context_ids[shuffling]
+    # played_actions = played_actions[shuffling]
+    # reward = reward[shuffling]
 
-    actions_b = np.random.uniform(
-        low=actions_b_range[0],
-        high=actions_b_range[1],
-        size=(int(sum(context_ids == 1) * (1 - percentage_of_wrong_actions)),),
-    )
-    wrong_action_b_0 = np.random.uniform(
-        low=actions_b_wrong_range_0[0],
-        high=actions_b_wrong_range_0[1],
-        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
-    )
-    wrong_action_b_1 = np.random.uniform(
-        low=actions_b_wrong_range_1[0],
-        high=actions_b_wrong_range_1[1],
-        size=(int(sum(context_ids == 0) * percentage_of_wrong_actions / 2),),
-    )
-    wrong_action_b = np.hstack([wrong_action_b_0, wrong_action_b_1])
-    played_actions_b = np.hstack([actions_b, wrong_action_b])
-    rewards_b = np.hstack([np.ones(len(actions_b)) * positive_reward, np.ones(len(wrong_action_b)) * negative_reward])
-
-    played_actions = np.zeros(len(context_ids))
-    played_actions[context_ids == 0] = played_actions_a
-    played_actions[context_ids == 1] = played_actions_b
-    reward = np.zeros(len(context_ids))
-    reward[context_ids == 0] = rewards_a
-    reward[context_ids == 1] = rewards_b
-
-    shuffling = np.arange(len(reward))
-    np.random.shuffle(shuffling)
-
-    context_vectors = context_vectors[shuffling]
-    context_ids = context_ids[shuffling]
-    played_actions = played_actions[shuffling]
-    reward = reward[shuffling]
+    context_vectors = np.array(pickle.load(open("/Users/aelwood/Downloads/past_contexts.pkl",'rb')))
+    played_actions = np.array(pickle.load(open("/Users/aelwood/Downloads/past_actions.pkl",'rb')))
+    reward = np.array(pickle.load(open("/Users/aelwood/Downloads/past_rewards.pkl",'rb')))
+    reward[reward==0] = -1
+    context_ids = np.array(pickle.load(open("/Users/aelwood/Downloads/context_ids.pkl",'rb')))
 
     past_contexts = context_vectors[: int(len(context_vectors) * 0.7)]
     past_actions = played_actions[: int(len(played_actions) * 0.7)]
@@ -407,6 +416,7 @@ if __name__ == "__main__":
             negative_yp_batch = yp_batch[negative_reward_mask]
 
             min_len = min(len(positive_xp_batch), len(negative_xp_batch))
+            #print(min_len)
 
             positive_xp_batch = positive_xp_batch[:min_len,:]
             positive_yp_batch = positive_yp_batch[:min_len]
