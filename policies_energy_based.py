@@ -42,6 +42,7 @@ class EnergyBasedModelMseNaive(nn.Module):
             x = self.layers[i](x)
         x = x.squeeze(dim=-1)
         energy = 1 / 2 * torch.pow(x - y, 2)
+        # energy = torch.abs(x-y)
         return energy
 
 
@@ -259,6 +260,7 @@ class EBMPolicy(PolicyABC):
         sample_size = 128,
         warm_up=64,
         num_epochs = 50,
+        loss_function_type: str = "log",
         device=torch.device("cpu"),
     ):
         self.past_rewards = []
@@ -268,6 +270,8 @@ class EBMPolicy(PolicyABC):
         self.sample_size = sample_size
         self.last_training_idx = 0
         self.num_epochs = num_epochs
+        assert loss_function_type in ["log","mce"]
+        self.loss_function_type = loss_function_type
 
         self.adjusted_feat_size = feature_size + 1  # + reward
 
@@ -281,7 +285,7 @@ class EBMPolicy(PolicyABC):
         )
         self.optimizer = optim.Adam(self.ebm_estimator.parameters(), lr=lr)
         self.scheduler = optim.lr_scheduler.StepLR(
-            self.optimizer, step_size=30, gamma=0.1
+            self.optimizer, step_size=100, gamma=0.1
         )
 
     def notify_event(self, context, action, stochastic_reward):
@@ -358,7 +362,14 @@ class EBMPolicy(PolicyABC):
                 y_pos = self.ebm_estimator(positive_xp_batch, positive_yp_batch)
                 y_neg = self.ebm_estimator(negative_xp_batch, negative_yp_batch)
 
-                loss = torch.log(1 + torch.exp(y_pos - y_neg)).mean()
+                if self.loss_function_type == "log":
+                    loss = torch.log(1 + torch.exp(y_pos - y_neg)).mean()
+                elif self.loss_function_type == "mce": # todo understand why this doesn't work
+                    # todo it seems like the model output becomes exponential
+                    loss = torch.pow((1 + torch.exp(-(y_pos - y_neg))), -1).mean()
+                else:
+                    raise ValueError
+
                 loss.backward()
                 self.optimizer.step()
                 running_loss.append(loss.item())
