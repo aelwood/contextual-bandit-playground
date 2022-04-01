@@ -1,6 +1,7 @@
 from policies import PolicyABC
 
 import random
+import math
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -75,14 +76,28 @@ class EBMModelImplicitRegression(nn.Module):
         ])
 
     def reinitialize_weights(self):
+
         for layer in self.g_1:
             if isinstance(layer, nn.Linear):
-                torch.nn.init.xavier_uniform(layer.weight)
-                layer.bias.data.fill_(0.01)
+                stdv = 1. / math.sqrt(layer.weight.size(1))
+                layer.weight.data.uniform_(-stdv, stdv)
+                if layer.bias is not None:
+                    layer.bias.data.uniform_(-stdv, stdv)
         for layer in self.g_2:
             if isinstance(layer, nn.Linear):
-                torch.nn.init.xavier_uniform(layer.weight)
-                layer.bias.data.fill_(0.01)
+                stdv = 1. / math.sqrt(layer.weight.size(1))
+                layer.weight.data.uniform_(-stdv, stdv)
+                if layer.bias is not None:
+                    layer.bias.data.uniform_(-stdv, stdv)
+
+        # for layer in self.g_1:
+        #     if isinstance(layer, nn.Linear):
+        #         torch.nn.init.xavier_uniform(layer.weight)
+        #         layer.bias.data.fill_(0.01)
+        # for layer in self.g_2:
+        #     if isinstance(layer, nn.Linear):
+        #         torch.nn.init.xavier_uniform(layer.weight)
+        #         layer.bias.data.fill_(0.01)
 
     def forward(self, x, y,yo=False):
         """
@@ -361,7 +376,7 @@ class EBMPolicy(PolicyABC):
             return np.random.rand()*5
 
         steps = 100
-        alpha = 5
+        alpha = 10
         step_size = 0.2 # TODO discuss
         #taken_context_plus_reward = torch.FloatTensor(np.hstack((context, [1])))
         context = torch.FloatTensor(context)
