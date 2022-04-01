@@ -272,20 +272,35 @@ class EBMPolicy(PolicyABC):
         self.num_epochs = num_epochs
         assert loss_function_type in ["log","mce"]
         self.loss_function_type = loss_function_type
-
+        self.feature_size = feature_size
         self.adjusted_feat_size = feature_size + 1  # + reward
 
         self.name = name
 
         self.positive_reward = 1
         self.negative_reward = -1
+        self.ebm_estimator_class = ebm_estimator_class
 
         self.ebm_estimator = ebm_estimator_class(
             in_features_size=self.adjusted_feat_size
         )
+        self.lr = lr
         self.optimizer = optim.Adam(self.ebm_estimator.parameters(), lr=lr)
         self.scheduler = optim.lr_scheduler.StepLR(
             self.optimizer, step_size=100, gamma=0.1
+        )
+
+    def __copy__(self):
+        return self.__class__(
+        name=self.name,
+        feature_size=self.feature_size,
+        ebm_estimator_class=self.ebm_estimator_class,
+        lr=self.lr,
+        sample_size = self.sample_size,
+        warm_up=self.warm_up,
+        num_epochs = self.num_epochs,
+        loss_function_type=self.loss_function_type,
+        device=torch.device("cpu"),
         )
 
     def notify_event(self, context, action, stochastic_reward):
