@@ -126,7 +126,8 @@ if __name__ == "__main__":
                 number_of_observations=3_000,
                 time_perturbation_function=lambda time, mu: mu,
                 # fixed_variances=0.2,
-                action_offset=3
+                action_offset=3,
+                name="envlin"
             ),
             SyntheticEnvironment(
                 number_of_different_context=2,
@@ -135,15 +136,17 @@ if __name__ == "__main__":
                                                              + np.cos(time / 500)*lambda_mul_factor
                                                              + 0.5,
                 # fixed_variances=0.2,
-                action_offset=3
-            ),
+                action_offset=3,
+                name = "envlin_dyn"
+        ),
             SyntheticEnvironment(
                 number_of_different_context=2,
                 number_of_observations=3_000,
                 time_perturbation_function=lambda time, mu: mu,
                 # fixed_variances=0.2,
-                action_offset=2
-            ),
+                action_offset=2,
+                name = "envlin2"
+        ),
             # CirclesSyntheticEnvironment(
             #     number_of_different_context=2,
             #     n_context_features=2,
@@ -225,7 +228,7 @@ if __name__ == "__main__":
         action_bounds = (default_actions_range[0], default_actions_range[-1])
         default_steps_before_retraining_nn = 100
         reward_bounds = (0.0, 1.0)
-        context_vector_size = 2
+        context_vector_size = 3
         pretrain_time = 1000
         pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=5))
         step_size=1
@@ -238,6 +241,8 @@ if __name__ == "__main__":
             ThompsonSamplingPolicy(
                 {k: v for k, v in enumerate(default_actions_range)}, sw=-200
             ),
+            LinUcbPolicy({k: v for k, v in enumerate(default_actions_range)}, context_vector_size, 0.05),
+            LinUcbPolicy({k: v for k, v in enumerate(default_actions_range)}, context_vector_size, 0.1)
         ]
 
         algo_a_policies = []
