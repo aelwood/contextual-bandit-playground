@@ -120,72 +120,61 @@ if __name__ == "__main__":
         # mul_factor = 1
         lambda_mul_factor =  1
 
+        number_of_observations = 3000
+
         possible_environments = [
-            SyntheticEnvironment(
+        #     SyntheticEnvironment(
+        #         number_of_different_context=2,
+        #         number_of_observations=3_000,
+        #         time_perturbation_function=lambda time, mu: mu,
+        #         # fixed_variances=0.2,
+        #         action_offset=3,
+        #         name="envlin"
+        #     ),
+        #     SyntheticEnvironment(
+        #         number_of_different_context=2,
+        #         number_of_observations=3_000,
+        #         time_perturbation_function=lambda time, mu: mu
+        #                                                      + np.cos(time / 500)*lambda_mul_factor
+        #                                                      + 0.5,
+        #         # fixed_variances=0.2,
+        #         action_offset=3,
+        #         name = "envlin_dyn"
+        # ),
+        #     SyntheticEnvironment(
+        #         number_of_different_context=2,
+        #         number_of_observations=3_000,
+        #         time_perturbation_function=lambda time, mu: mu,
+        #         # fixed_variances=0.2,
+        #         action_offset=2,
+        #         name = "envlin2"
+        # ),
+            CirclesSyntheticEnvironment(
                 number_of_different_context=2,
-                number_of_observations=3_000,
+                n_context_features=2,
+                number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu,
-                # fixed_variances=0.2,
+                # fixed_variances=fixed_variances,
+                # environment_best_action_offset=environment_best_action_offset,
                 action_offset=3,
-                name="envlin"
+                # mul_factor=mul_factor,
+                circle_factor=4.,
+                name="2c_4_circ",
             ),
-            SyntheticEnvironment(
+            CirclesSyntheticEnvironment(
                 number_of_different_context=2,
-                number_of_observations=3_000,
+                n_context_features=2,
+                number_of_observations=number_of_observations,
                 time_perturbation_function=lambda time, mu: mu
-                                                             + np.cos(time / 500)*lambda_mul_factor
-                                                             + 0.5,
-                # fixed_variances=0.2,
+                                                        + np.cos(time / 500)*lambda_mul_factor
+                                                        + 0.5,
+                # fixed_variances=fixed_variances,
+                # environment_best_action_offset=environment_best_action_offset,
                 action_offset=3,
-                name = "envlin_dyn"
-        ),
-            SyntheticEnvironment(
-                number_of_different_context=2,
-                number_of_observations=3_000,
-                time_perturbation_function=lambda time, mu: mu,
-                # fixed_variances=0.2,
-                action_offset=2,
-                name = "envlin2"
-        ),
-            # CirclesSyntheticEnvironment(
-            #     number_of_different_context=2,
-            #     n_context_features=2,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu
-            #                                                 + np.cos(time / 1_000)*lambda_mul_factor
-            #                                                 + 0.5,
-            #     fixed_variances=fixed_variances,
-            #     environment_best_action_offset=environment_best_action_offset,
-            #     action_offset=action_offset,
-            #     mul_factor=mul_factor,
-            #     name="2c_dm_slw_circ",
-            # ),
-            # CirclesSyntheticEnvironment(
-            #     number_of_different_context=2,
-            #     n_context_features=2,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu
-            #                                                 + np.cos(time / 500)*lambda_mul_factor
-            #                                                 + 0.5,
-            #     fixed_variances=fixed_variances,
-            #     environment_best_action_offset=environment_best_action_offset,
-            #     action_offset=action_offset,
-            #     mul_factor=mul_factor,
-            #     name="2c_dm_circ",
-            # ),
-            # CirclesSyntheticEnvironment(
-            #     number_of_different_context=2,
-            #     n_context_features=2,
-            #     number_of_observations=number_of_observations,
-            #     time_perturbation_function=lambda time, mu: mu
-            #                                                 + np.cos(time / 200)*lambda_mul_factor
-            #                                                 + 0.5,
-            #     fixed_variances=fixed_variances,
-            #     environment_best_action_offset=environment_best_action_offset,
-            #     action_offset=action_offset,
-            #     mul_factor=mul_factor,
-            #     name="2c_dm_fst_circ",
-            # ),
+                # mul_factor=mul_factor,
+                circle_factor=4.,
+                name="2c_4_circ_dyn",
+            ),
         ]
 
         # THESE ARE THE ENVIRONMENTS WE THOUGHT WE WOULD WIN ON....
@@ -368,21 +357,40 @@ if __name__ == "__main__":
         #             )
 
         algo_b_policies = [
-            EBMPolicy(
-                name=f'EBM_NN_baseline',
-                warm_up=pretrain_time,
-                num_epochs=150,
-                loss_function_type="log",
-            ),
+            # EBMPolicy(
+            #     name=f'EBM_NN_baseline',
+            #     warm_up=pretrain_time,
+            #     num_epochs=150,
+            #     loss_function_type="log",
+            # ),
             # EBMPolicy(
             #     name=f'EBM_NN_baseline',
             #     warm_up=pretrain_time,
             #     num_epochs=150,
             #     loss_function_type="mce", # FIXME this doesn't work
             # )
+            EBMPolicy(
+                name=f'EBM_NN_circ_hp_q',
+                lr=0.005,
+                warm_up=pretrain_time,
+                num_epochs=150,
+                loss_function_type="log",
+                sample_size=256,
+                output_quadratic=True,
+            ),
+            EBMPolicy(
+                name=f'EBM_NN_circ_hp_l',
+                lr=0.005,
+                warm_up=pretrain_time,
+                num_epochs=150,
+                loss_function_type="log",
+                sample_size=256,
+                output_quadratic=False,
+            ),
         ]
 
         policies_to_run = baseline_policies + algo_b_policies + algo_a_policies
+        #policies_to_run = algo_b_policies
         for policy_base in policies_to_run:
             for environment in possible_environments:
                 policy = policy_base.__copy__()

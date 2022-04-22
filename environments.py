@@ -169,6 +169,10 @@ class MoonsContextsMixin:
 
 
 class CirclesContextsMixin:
+
+    def __init__(self, *, circle_factor: float = 4., **kwargs):
+        self.circle_factor = circle_factor
+
     def _generate_context(
         self, number_of_observations, n_context_features, number_of_different_context
     ):
@@ -180,6 +184,8 @@ class CirclesContextsMixin:
             n_samples=number_of_observations,
             shuffle=True,
         )
+        context_vectors[context_ids == 0, 0] *= self.circle_factor
+        context_vectors[context_ids == 0, 1] *= self.circle_factor
         return context_vectors, context_ids
 
 

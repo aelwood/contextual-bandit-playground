@@ -48,7 +48,7 @@ class EnergyBasedModelMseNaive(nn.Module):
 
 class EBMModelImplicitRegression(nn.Module):
 
-    def __init__(self, in_features_size=32):
+    def __init__(self, in_features_size=32, output_quadratic: bool = True):
         super(EBMModelImplicitRegression, self).__init__()
         self.g_1 = nn.ModuleList([
             torch.nn.Linear(in_features_size, 256),
@@ -75,6 +75,8 @@ class EBMModelImplicitRegression(nn.Module):
             torch.nn.Dropout(),
             torch.nn.Linear(128, 1),
         ])
+
+        self.output_quadratic = output_quadratic
 
     def reinitialize_weights(self):
 
@@ -126,7 +128,10 @@ class EBMModelImplicitRegression(nn.Module):
 
         #energy = torch.abs(x-y)
         # energy = x-y
-        energy =1 / 2 * torch.pow(x - y, 2)
+        if self.output_quadratic:
+            energy =1 / 2 * torch.pow(x - y, 2)
+        else:
+            energy = torch.abs(x-y)
         # energy = torch.log(1 + torch.exp(x-y))
 
         return energy
@@ -248,8 +253,6 @@ class EBMPolicyNaive(PolicyABC):
         pass
 
 
-
-
 class EBMPolicy(PolicyABC):
     def __init__(
         self,
@@ -262,6 +265,8 @@ class EBMPolicy(PolicyABC):
         num_epochs = 50,
         loss_function_type: str = "log",
         device=torch.device("cpu"),
+        schedule_step_size: int = 100,
+        output_quadratic: bool = True,
     ):
         self.past_rewards = []
         self.past_actions = []
@@ -282,12 +287,13 @@ class EBMPolicy(PolicyABC):
         self.ebm_estimator_class = ebm_estimator_class
 
         self.ebm_estimator = ebm_estimator_class(
-            in_features_size=self.adjusted_feat_size
+            in_features_size=self.adjusted_feat_size,
+            output_quadratic=output_quadratic
         )
         self.lr = lr
         self.optimizer = optim.Adam(self.ebm_estimator.parameters(), lr=lr)
         self.scheduler = optim.lr_scheduler.StepLR(
-            self.optimizer, step_size=100, gamma=0.1
+            self.optimizer, step_size=schedule_step_size, gamma=0.1
         )
 
     def __copy__(self):
