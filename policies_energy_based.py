@@ -278,7 +278,7 @@ class EBMPolicy(PolicyABC):
         assert loss_function_type in ["log","mce"]
         self.loss_function_type = loss_function_type
         self.feature_size = feature_size
-        self.adjusted_feat_size = feature_size + 1  # + reward
+        self.adjusted_feat_size = feature_size
 
         self.name = name
 

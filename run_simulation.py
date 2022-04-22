@@ -99,7 +99,7 @@ def tes_EBM():
 
 
 if __name__ == "__main__":
-    run_ablation_test = False
+    run_ablation_test = True
 
     if not run_ablation_test:
         tes_EBM()
@@ -123,14 +123,14 @@ if __name__ == "__main__":
         number_of_observations = 3000
 
         possible_environments = [
-        #     SyntheticEnvironment(
-        #         number_of_different_context=2,
-        #         number_of_observations=3_000,
-        #         time_perturbation_function=lambda time, mu: mu,
-        #         # fixed_variances=0.2,
-        #         action_offset=3,
-        #         name="envlin"
-        #     ),
+            # SyntheticEnvironment(
+            #     number_of_different_context=2,
+            #     number_of_observations=3_000,
+            #     time_perturbation_function=lambda time, mu: mu,
+            #     # fixed_variances=0.2,
+            #     action_offset=3,
+            #     name="envlin"
+            # ),
         #     SyntheticEnvironment(
         #         number_of_different_context=2,
         #         number_of_observations=3_000,
@@ -217,7 +217,7 @@ if __name__ == "__main__":
         action_bounds = (default_actions_range[0], default_actions_range[-1])
         default_steps_before_retraining_nn = 100
         reward_bounds = (0.0, 1.0)
-        context_vector_size = 3
+        context_vector_size = 2 # TODO pay attention to this, it's different for circles and lin sep
         pretrain_time = 1000
         pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=5))
         step_size=1
@@ -362,12 +362,14 @@ if __name__ == "__main__":
             #     warm_up=pretrain_time,
             #     num_epochs=150,
             #     loss_function_type="log",
+            #    feature_size = context_vector_size
             # ),
             # EBMPolicy(
             #     name=f'EBM_NN_baseline',
             #     warm_up=pretrain_time,
             #     num_epochs=150,
-            #     loss_function_type="mce", # FIXME this doesn't work
+            #     loss_function_type="mce", # TODO this doesn't work
+            #    feature_size = context_vector_size
             # )
             EBMPolicy(
                 name=f'EBM_NN_circ_hp_q',
@@ -377,6 +379,7 @@ if __name__ == "__main__":
                 loss_function_type="log",
                 sample_size=256,
                 output_quadratic=True,
+               feature_size = context_vector_size
             ),
             EBMPolicy(
                 name=f'EBM_NN_circ_hp_l',
@@ -386,6 +389,7 @@ if __name__ == "__main__":
                 loss_function_type="log",
                 sample_size=256,
                 output_quadratic=False,
+                feature_size=context_vector_size
             ),
         ]
 
