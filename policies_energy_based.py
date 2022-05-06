@@ -267,6 +267,7 @@ class EBMPolicy(PolicyABC):
         device=torch.device("cpu"),
         schedule_step_size: int = 100,
         output_quadratic: bool = True,
+        alpha: float = 10.,
     ):
         self.past_rewards = []
         self.past_actions = []
@@ -279,6 +280,7 @@ class EBMPolicy(PolicyABC):
         self.loss_function_type = loss_function_type
         self.feature_size = feature_size
         self.adjusted_feat_size = feature_size
+        self.alpha=alpha
 
         self.name = name
 
@@ -408,7 +410,7 @@ class EBMPolicy(PolicyABC):
             return np.random.rand()*5
 
         steps = 100
-        alpha = 10
+        alpha = self.alpha
         step_size = 0.2 # TODO discuss
         #taken_context_plus_reward = torch.FloatTensor(np.hstack((context, [1])))
         context = torch.FloatTensor(context)
