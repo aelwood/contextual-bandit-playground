@@ -405,7 +405,6 @@ class EBMPolicy(PolicyABC):
         1--1
 
     def get_action(self, context):
-
         if self.warm_up >= len(self.past_contexts):
             return np.random.rand()*5
 
