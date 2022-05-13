@@ -148,32 +148,32 @@ if __name__ == "__main__":
                 action_offset=2,
                 name = "envlin2"
         ),
-            CirclesSyntheticEnvironment(
-                number_of_different_context=2,
-                n_context_features=2,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu,
-                # fixed_variances=fixed_variances,
-                # environment_best_action_offset=environment_best_action_offset,
-                action_offset=3,
-                # mul_factor=mul_factor,
-                circle_factor=4.,
-                name="2c_4_circ",
-            ),
-            CirclesSyntheticEnvironment(
-                number_of_different_context=2,
-                n_context_features=2,
-                number_of_observations=number_of_observations,
-                time_perturbation_function=lambda time, mu: mu
-                                                        + np.cos(time / 500)*lambda_mul_factor
-                                                        + 0.5,
-                # fixed_variances=fixed_variances,
-                # environment_best_action_offset=environment_best_action_offset,
-                action_offset=3,
-                # mul_factor=mul_factor,
-                circle_factor=4.,
-                name="2c_4_circ_dyn",
-            ),
+            # CirclesSyntheticEnvironment(
+            #     number_of_different_context=2,
+            #     n_context_features=2,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu,
+            #     # fixed_variances=fixed_variances,
+            #     # environment_best_action_offset=environment_best_action_offset,
+            #     action_offset=3,
+            #     # mul_factor=mul_factor,
+            #     circle_factor=4.,
+            #     name="2c_4_circ",
+            # ),
+            # CirclesSyntheticEnvironment(
+            #     number_of_different_context=2,
+            #     n_context_features=2,
+            #     number_of_observations=number_of_observations,
+            #     time_perturbation_function=lambda time, mu: mu
+            #                                             + np.cos(time / 500)*lambda_mul_factor
+            #                                             + 0.5,
+            #     # fixed_variances=fixed_variances,
+            #     # environment_best_action_offset=environment_best_action_offset,
+            #     action_offset=3,
+            #     # mul_factor=mul_factor,
+            #     circle_factor=4.,
+            #     name="2c_4_circ_dyn",
+            # ),
         ]
 
 
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         action_bounds = (default_actions_range[0], default_actions_range[-1])
         default_steps_before_retraining_nn = 100
         reward_bounds = (0.0, 1.0)
-        context_vector_size = 2 # TODO pay attention to this, it's different for circles and lin sep
+        context_vector_size = 3 # TODO pay attention to this, it's different for circles and lin sep
         pretrain_time = 1000
         pretrain_policy = RandomPolicy(uniform(loc=0.5, scale=5))
         step_size=1
