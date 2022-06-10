@@ -32,6 +32,15 @@ for device in physical_devices:
 
 from scipy.stats import uniform
 
+try:
+    # Disable all GPUS
+    tf.config.set_visible_devices([], 'GPU')
+    visible_devices = tf.config.get_visible_devices()
+    for device in visible_devices:
+        assert device.device_type != 'GPU'
+except:
+    # Invalid device or cannot modify virtual devices once initialized.
+    pass
 
 def simulate(
     environment, policy, evaluator, evaluation_frequency=100, steps_to_train=1
@@ -238,7 +247,7 @@ if __name__ == "__main__":
 
         algo_a_policies.append(
             MaxEntropyModelFreeDiscrete(
-                possible_actions=np.random.uniform(low=0, high=7, size=600),
+                possible_actions=np.random.uniform(low=0, high=7, size=60),
                 name=f'MEMFD_B_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
                 alpha_entropy=alpha,
                 reward_estimator=LimitedNeuralNetworkRewardEstimator(
@@ -321,34 +330,35 @@ if __name__ == "__main__":
 
         algo_b_policies = []
 
-        for alpha in [10, 5, 2]:
-            algo_b_policies.append(
-                EBMPolicy(
-                name=f'EBM_NN_baseline_a_{alpha}',
-                warm_up=pretrain_time,
-                num_epochs=150,
-                loss_function_type="log",
-                alpha=alpha,
-                feature_size = context_vector_size
-            ))
-            # EBMPolicy(
-            #     name=f'EBM_NN_baseline',
-            #     warm_up=pretrain_time,
-            #     num_epochs=150,
-            #     loss_function_type="mce", # TODO this doesn't work
-            #    feature_size = context_vector_size
-            # )
-            algo_b_policies.append(EBMPolicy(
-                name=f'EBM_NN_circ_hp_q_a_{alpha}',
-                lr=0.005,
-                warm_up=pretrain_time,
-                num_epochs=150,
-                loss_function_type="log",
-                sample_size=256,
-                output_quadratic=True,
-                alpha=alpha,
-                feature_size = context_vector_size
-            ))
+        #for alpha in [20, 10, 5, 2]:
+        for alpha in [20, 10]:
+          #  algo_b_policies.append(
+          #      EBMPolicy(
+          #      name=f'EBM_NN_baseline_a_{alpha}',
+          #      warm_up=pretrain_time,
+          #      num_epochs=150,
+          #      loss_function_type="log",
+          #      alpha=alpha,
+          #      feature_size = context_vector_size
+          #  ))
+          #  # EBMPolicy(
+          #  #     name=f'EBM_NN_baseline',
+          #  #     warm_up=pretrain_time,
+          #  #     num_epochs=150,
+          #  #     loss_function_type="mce", # TODO this doesn't work
+          #  #    feature_size = context_vector_size
+          #  # )
+          #  algo_b_policies.append(EBMPolicy(
+          #      name=f'EBM_NN_circ_hp_q_a_{alpha}',
+          #      lr=0.005,
+          #      warm_up=pretrain_time,
+          #      num_epochs=150,
+          #      loss_function_type="log",
+          #      sample_size=256,
+          #      output_quadratic=True,
+          #      alpha=alpha,
+          #      feature_size = context_vector_size
+          #  ))
             algo_b_policies.append(EBMPolicy(
                 name=f'EBM_NN_circ_hp_l_a_{alpha}',
                 lr=0.005,
@@ -362,7 +372,8 @@ if __name__ == "__main__":
             ))
 
 
-        policies_to_run = baseline_policies + algo_b_policies + algo_a_policies
+        #policies_to_run = algo_b_policies + algo_a_policies
+        policies_to_run = algo_a_policies + algo_b_policies  
 
         for policy_base in policies_to_run:
             for environment in possible_environments:
