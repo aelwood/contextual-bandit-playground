@@ -180,9 +180,9 @@ class EBMPolicyNaive(PolicyABC):
             return None
         self.ebm_estimator.reinitialize_weights()
         for epoch in range(self.num_epochs):
-            context_to_train = self.past_contexts[self.last_training_idx:]
-            actions_to_train = self.past_actions[self.last_training_idx:]
-            rewards_to_train = self.past_rewards[self.last_training_idx:]
+            context_to_train = self.past_contexts[self.sw:]
+            actions_to_train = self.past_actions[self.sw:]
+            rewards_to_train = self.past_rewards[self.sw:]
 
             self.ebm_estimator.train()
 
@@ -268,6 +268,7 @@ class EBMPolicy(PolicyABC):
         schedule_step_size: int = 100,
         output_quadratic: bool = True,
         alpha: float = 10.,
+        sw = 0,
     ):
         self.past_rewards = []
         self.past_actions = []
@@ -287,6 +288,9 @@ class EBMPolicy(PolicyABC):
         self.positive_reward = 1
         self.negative_reward = -1
         self.ebm_estimator_class = ebm_estimator_class
+
+        sw *= -1 if sw > 0 else 1
+        self.sw = sw
 
         self.ebm_estimator = ebm_estimator_class(
             in_features_size=self.adjusted_feat_size,
@@ -309,6 +313,7 @@ class EBMPolicy(PolicyABC):
         num_epochs = self.num_epochs,
         loss_function_type=self.loss_function_type,
         device=torch.device("cpu"),
+        sw=self.sw,
         )
 
     def notify_event(self, context, action, stochastic_reward):

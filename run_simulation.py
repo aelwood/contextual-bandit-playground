@@ -208,195 +208,200 @@ if __name__ == "__main__":
             LinUcbPolicy({k: v for k, v in enumerate(default_actions_range)}, context_vector_size, 0.1)
         ]
 
-        algo_a_policies = []
-
+        # algo_a_policies = []
+        #
+        # # # MEMF_NN_50_50_A01
+        # nn_layers = [50, 50]
+        # alpha = 0.1
+        # algo_a_policies.append(
+        #     MaxEntropyModelFreeDiscrete(
+        #         possible_actions=default_actions_range,
+        #         name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
+        #         alpha_entropy=alpha,
+        #         reward_estimator=LimitedNeuralNetworkRewardEstimator(
+        #             action_bounds=action_bounds,
+        #             reward_bounds=reward_bounds,
+        #             layers=nn_layers,
+        #             context_vector_size=context_vector_size,
+        #         ),
+        #         pretrain_time=pretrain_time,
+        #         pretrain_policy=pretrain_policy,
+        #     )
+        # )
+        #
+        # algo_a_policies.append(
+        #     MaxEntropyModelFreeDiscrete(
+        #         possible_actions=np.random.uniform(low=0, high=7, size=6),
+        #         name=f'MEMFD_A_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
+        #         alpha_entropy=alpha,
+        #         reward_estimator=LimitedNeuralNetworkRewardEstimator(
+        #             action_bounds=action_bounds,
+        #             reward_bounds=reward_bounds,
+        #             layers=nn_layers,
+        #             context_vector_size=context_vector_size,
+        #         ),
+        #         pretrain_time=pretrain_time,
+        #         pretrain_policy=pretrain_policy,
+        #     )
+        # )
+        #
+        # algo_a_policies.append(
+        #     MaxEntropyModelFreeDiscrete(
+        #         possible_actions=np.random.uniform(low=0, high=7, size=60),
+        #         name=f'MEMFD_B_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
+        #         alpha_entropy=alpha,
+        #         reward_estimator=LimitedNeuralNetworkRewardEstimator(
+        #             action_bounds=action_bounds,
+        #             reward_bounds=reward_bounds,
+        #             layers=nn_layers,
+        #             context_vector_size=context_vector_size,
+        #         ),
+        #         pretrain_time=pretrain_time,
+        #         pretrain_policy=pretrain_policy,
+        #     )
+        # )
+        #
+        # # MEMF_HMC_NN_50_50_A005
+        # nn_layers = [50, 50]
+        # alpha = 0.05
+        # algo_a_policies.append(
+        #     MaxEntropyModelFreeContinuousHmc(
+        #         mcmc_initial_state=mcmc_initial_state,
+        #         step_size=step_size,
+        #         name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}',
+        #         alpha_entropy=alpha,
+        #         reward_estimator=LimitedNeuralNetworkRewardEstimator(
+        #             action_bounds=action_bounds,
+        #             reward_bounds=reward_bounds,
+        #             layers=nn_layers,
+        #             context_vector_size=context_vector_size,
+        #         ),
+        #         pretrain_time=pretrain_time,
+        #         pretrain_policy=pretrain_policy,
+        #     )
+        # )
+        #
         # # MEMF_NN_50_50_A01
-        nn_layers = [50, 50]
-        alpha = 0.1
-        algo_a_policies.append(
-            MaxEntropyModelFreeDiscrete(
-                possible_actions=default_actions_range,
-                name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
-                alpha_entropy=alpha,
-                reward_estimator=LimitedNeuralNetworkRewardEstimator(
-                    action_bounds=action_bounds,
-                    reward_bounds=reward_bounds,
-                    layers=nn_layers,
-                    context_vector_size=context_vector_size,
-                ),
-                pretrain_time=pretrain_time,
-                pretrain_policy=pretrain_policy,
-            )
-        )
-
-        algo_a_policies.append(
-            MaxEntropyModelFreeDiscrete(
-                possible_actions=np.random.uniform(low=0, high=7, size=6),
-                name=f'MEMFD_A_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
-                alpha_entropy=alpha,
-                reward_estimator=LimitedNeuralNetworkRewardEstimator(
-                    action_bounds=action_bounds,
-                    reward_bounds=reward_bounds,
-                    layers=nn_layers,
-                    context_vector_size=context_vector_size,
-                ),
-                pretrain_time=pretrain_time,
-                pretrain_policy=pretrain_policy,
-            )
-        )
-
-        algo_a_policies.append(
-            MaxEntropyModelFreeDiscrete(
-                possible_actions=np.random.uniform(low=0, high=7, size=60),
-                name=f'MEMFD_B_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}',
-                alpha_entropy=alpha,
-                reward_estimator=LimitedNeuralNetworkRewardEstimator(
-                    action_bounds=action_bounds,
-                    reward_bounds=reward_bounds,
-                    layers=nn_layers,
-                    context_vector_size=context_vector_size,
-                ),
-                pretrain_time=pretrain_time,
-                pretrain_policy=pretrain_policy,
-            )
-        )
-
-        # MEMF_HMC_NN_50_50_A005
-        nn_layers = [50, 50]
-        alpha = 0.05
-        algo_a_policies.append(
-            MaxEntropyModelFreeContinuousHmc(
-                mcmc_initial_state=mcmc_initial_state,
-                step_size=step_size,
-                name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}',
-                alpha_entropy=alpha,
-                reward_estimator=LimitedNeuralNetworkRewardEstimator(
-                    action_bounds=action_bounds,
-                    reward_bounds=reward_bounds,
-                    layers=nn_layers,
-                    context_vector_size=context_vector_size,
-                ),
-                pretrain_time=pretrain_time,
-                pretrain_policy=pretrain_policy,
-            )
-        )
-
-        # MEMF_NN_50_50_A01
-        mem = 200
-        nn_layers = [50, 50]
-        alpha = 0.1
-        algo_a_policies.append(
-            MaxEntropyModelFreeDiscrete(
-                possible_actions=default_actions_range,
-                name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}_sig_{mem}',
-                alpha_entropy=alpha,
-                reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
-                    short_term_mem=mem,
-                    long_term_mem=mem,
-                    action_bounds=action_bounds,
-                    reward_bounds=reward_bounds,
-                    layers=nn_layers,
-                    context_vector_size=context_vector_size,
-                ),
-                pretrain_time=pretrain_time,
-                pretrain_policy=pretrain_policy,
-            )
-        )
-
-        # MEMF_HMC_NN_50_50_A005
-        mem = 200
-        nn_layers = [50, 50]
-        alpha = 0.05
-        algo_a_policies.append(
-            MaxEntropyModelFreeContinuousHmc(
-                mcmc_initial_state=mcmc_initial_state,
-                step_size=step_size,
-                name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}_sig_{mem}',
-                alpha_entropy=alpha,
-                reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
-                    short_term_mem=mem,
-                    long_term_mem=mem,
-                    action_bounds=action_bounds,
-                    reward_bounds=reward_bounds,
-                    layers=nn_layers,
-                    context_vector_size=context_vector_size,
-                ),
-                pretrain_time=pretrain_time,
-                pretrain_policy=pretrain_policy,
-            )
-        )
+        # mem = 200
+        # nn_layers = [50, 50]
+        # alpha = 0.1
+        # algo_a_policies.append(
+        #     MaxEntropyModelFreeDiscrete(
+        #         possible_actions=default_actions_range,
+        #         name=f'MEMFD_NN_{[str(x) + "_" for x in nn_layers]}_a{str(alpha).replace(".", "")}_sig_{mem}',
+        #         alpha_entropy=alpha,
+        #         reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
+        #             short_term_mem=mem,
+        #             long_term_mem=mem,
+        #             action_bounds=action_bounds,
+        #             reward_bounds=reward_bounds,
+        #             layers=nn_layers,
+        #             context_vector_size=context_vector_size,
+        #         ),
+        #         pretrain_time=pretrain_time,
+        #         pretrain_policy=pretrain_policy,
+        #     )
+        # )
+        #
+        # # MEMF_HMC_NN_50_50_A005
+        # mem = 200
+        # nn_layers = [50, 50]
+        # alpha = 0.05
+        # algo_a_policies.append(
+        #     MaxEntropyModelFreeContinuousHmc(
+        #         mcmc_initial_state=mcmc_initial_state,
+        #         step_size=step_size,
+        #         name=f'MEMF_HMC_NN_{"_".join([str(x) for x in nn_layers])}_a{str(alpha).replace(".", "")}_sig_{mem}',
+        #         alpha_entropy=alpha,
+        #         reward_estimator=LimitedNeuralNetworkRewardEstimatorTrainingWeightsSigmoid(
+        #             short_term_mem=mem,
+        #             long_term_mem=mem,
+        #             action_bounds=action_bounds,
+        #             reward_bounds=reward_bounds,
+        #             layers=nn_layers,
+        #             context_vector_size=context_vector_size,
+        #         ),
+        #         pretrain_time=pretrain_time,
+        #         pretrain_policy=pretrain_policy,
+        #     )
+        # )
 
 
 
         algo_b_policies = []
 
         #for alpha in [20, 10, 5, 2]:
-        for alpha in [20, 10]:
-          #  algo_b_policies.append(
-          #      EBMPolicy(
-          #      name=f'EBM_NN_baseline_a_{alpha}',
-          #      warm_up=pretrain_time,
-          #      num_epochs=150,
-          #      loss_function_type="log",
-          #      alpha=alpha,
-          #      feature_size = context_vector_size
-          #  ))
-          #  # EBMPolicy(
-          #  #     name=f'EBM_NN_baseline',
-          #  #     warm_up=pretrain_time,
-          #  #     num_epochs=150,
-          #  #     loss_function_type="mce", # TODO this doesn't work
-          #  #    feature_size = context_vector_size
-          #  # )
-          #  algo_b_policies.append(EBMPolicy(
-          #      name=f'EBM_NN_circ_hp_q_a_{alpha}',
-          #      lr=0.005,
-          #      warm_up=pretrain_time,
-          #      num_epochs=150,
-          #      loss_function_type="log",
-          #      sample_size=256,
-          #      output_quadratic=True,
-          #      alpha=alpha,
-          #      feature_size = context_vector_size
-          #  ))
+        # for alpha in [20, 10]:
+        for sw in [200,300,500,1_000]:
+            for alpha in [20,10]:
+               algo_b_policies.append(
+                   EBMPolicy(
+                   name=f'EBM_NN_baseline_a_{alpha}_SW_{sw}',
+                   warm_up=pretrain_time,
+                   num_epochs=150,
+                   loss_function_type="log",
+                   alpha=alpha,
+                   feature_size = context_vector_size,
+                   sw=sw,
+               ))
+               # EBMPolicy(
+               #     name=f'EBM_NN_baseline',
+               #     warm_up=pretrain_time,
+               #     num_epochs=150,
+               #     loss_function_type="mce", # TODO this doesn't work
+               #    feature_size = context_vector_size
+               # )
+               algo_b_policies.append(EBMPolicy(
+                   name=f'EBM_NN_circ_hp_q_a_{alpha}_SW_{sw}',
+                   lr=0.005,
+                   warm_up=pretrain_time,
+                   num_epochs=150,
+                   loss_function_type="log",
+                   sample_size=256,
+                   output_quadratic=True,
+                   alpha=alpha,
+                   feature_size = context_vector_size,
+                   sw=sw,
+               ))
             algo_b_policies.append(EBMPolicy(
-                name=f'EBM_NN_circ_hp_l_a_{alpha}',
-                lr=0.005,
-                warm_up=pretrain_time,
-                num_epochs=150,
-                loss_function_type="log",
-                sample_size=256,
-                output_quadratic=False,
-                alpha=alpha,
-                feature_size=context_vector_size
-            ))
+                    name=f'EBM_NN_circ_hp_l_a_{alpha}_SW_{sw}',
+                    lr=0.005,
+                    warm_up=pretrain_time,
+                    num_epochs=150,
+                    loss_function_type="log",
+                    sample_size=256,
+                    output_quadratic=False,
+                    alpha=alpha,
+                    feature_size=context_vector_size,
+                    sw=sw,
+                ))
 
 
-        #policies_to_run = algo_b_policies + algo_a_policies
-        policies_to_run = algo_a_policies + algo_b_policies  
+            #policies_to_run = algo_b_policies + algo_a_policies
+            policies_to_run =  algo_b_policies
 
-        for policy_base in policies_to_run:
-            for environment in possible_environments:
-                policy = policy_base.__copy__()
-                print(f"Running {policy.name} - {environment.name}")
+            for policy_base in policies_to_run:
+                for environment in possible_environments:
+                    policy = policy_base.__copy__()
+                    print(f"Running {policy.name} - {environment.name}")
 
-                evaluator = Evaluator(
-                    run_name=f"{policy.name}",
-                    save_data=True,
-                    plot_data=False,
-                    use_mlflow=True,
-                    policy=policy,
-                    environment=environment,
-                    experiment_name="inc_ebm_" + environment.name,
-                )
-                steps_to_train = 1
-                if "NN" in policy.name:
-                    steps_to_train = default_steps_before_retraining_nn
+                    evaluator = Evaluator(
+                        run_name=f"{policy.name}",
+                        save_data=True,
+                        plot_data=False,
+                        use_mlflow=True,
+                        policy=policy,
+                        environment=environment,
+                        experiment_name="inc_ebm_" + environment.name,
+                    )
+                    steps_to_train = 1
+                    if "NN" in policy.name:
+                        steps_to_train = default_steps_before_retraining_nn
 
-                simulate(
-                    environment,
-                    policy,
-                    evaluator,
-                    evaluation_frequency=100,
-                    steps_to_train=steps_to_train,
-                )
+                    simulate(
+                        environment,
+                        policy,
+                        evaluator,
+                        evaluation_frequency=100,
+                        steps_to_train=steps_to_train,
+                    )
