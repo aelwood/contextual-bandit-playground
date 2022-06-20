@@ -332,7 +332,7 @@ if __name__ == "__main__":
 
         #for alpha in [20, 10, 5, 2]:
         # for alpha in [20, 10]:
-        for sw in [300,500,1_000]:
+        for sw in [200, 300,500,1_000]:
             for alpha in [20, 10]:
                algo_b_policies.append(
                    EBMPolicy(
