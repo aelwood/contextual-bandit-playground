@@ -332,8 +332,8 @@ if __name__ == "__main__":
 
         #for alpha in [20, 10, 5, 2]:
         # for alpha in [20, 10]:
-        for sw in [200,300,500,1_000]:
-            for alpha in [20,10]:
+        for sw in [300,500,1_000]:
+            for alpha in [20, 10]:
                algo_b_policies.append(
                    EBMPolicy(
                    name=f'EBM_NN_baseline_a_{alpha}_SW_{sw}',
@@ -363,7 +363,7 @@ if __name__ == "__main__":
                    feature_size = context_vector_size,
                    sw=sw,
                ))
-            algo_b_policies.append(EBMPolicy(
+               algo_b_policies.append(EBMPolicy(
                     name=f'EBM_NN_circ_hp_l_a_{alpha}_SW_{sw}',
                     lr=0.005,
                     warm_up=pretrain_time,
@@ -377,31 +377,31 @@ if __name__ == "__main__":
                 ))
 
 
-            #policies_to_run = algo_b_policies + algo_a_policies
-            policies_to_run =  algo_b_policies
+        #policies_to_run = algo_b_policies + algo_a_policies
+        policies_to_run =  algo_b_policies
 
-            for policy_base in policies_to_run:
-                for environment in possible_environments:
-                    policy = policy_base.__copy__()
-                    print(f"Running {policy.name} - {environment.name}")
+        for policy_base in policies_to_run:
+            for environment in possible_environments:
+                policy = policy_base.__copy__()
+                print(f"Running {policy.name} - {environment.name}")
 
-                    evaluator = Evaluator(
-                        run_name=f"{policy.name}",
-                        save_data=True,
-                        plot_data=False,
-                        use_mlflow=True,
-                        policy=policy,
-                        environment=environment,
-                        experiment_name="inc_ebm_" + environment.name,
-                    )
-                    steps_to_train = 1
-                    if "NN" in policy.name:
-                        steps_to_train = default_steps_before_retraining_nn
+                evaluator = Evaluator(
+                    run_name=f"{policy.name}",
+                    save_data=True,
+                    plot_data=False,
+                    use_mlflow=True,
+                    policy=policy,
+                    environment=environment,
+                    experiment_name="inc_ebm_" + environment.name,
+                )
+                steps_to_train = 1
+                if "NN" in policy.name:
+                    steps_to_train = default_steps_before_retraining_nn
 
-                    simulate(
-                        environment,
-                        policy,
-                        evaluator,
-                        evaluation_frequency=100,
-                        steps_to_train=steps_to_train,
-                    )
+                simulate(
+                    environment,
+                    policy,
+                    evaluator,
+                    evaluation_frequency=100,
+                    steps_to_train=steps_to_train,
+                )
