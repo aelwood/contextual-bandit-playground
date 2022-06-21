@@ -330,9 +330,9 @@ class EBMPolicy(PolicyABC):
             return None
         #self.ebm_estimator.reinitialize_weights()
 
-        context_to_train = self.past_contexts[self.last_training_idx:]
-        actions_to_train = self.past_actions[self.last_training_idx:]
-        rewards_to_train = self.past_rewards[self.last_training_idx:]
+        context_to_train = self.past_contexts[self.sw:]
+        actions_to_train = self.past_actions[self.sw:]
+        rewards_to_train = self.past_rewards[self.sw:]
 
         self.ebm_estimator.train()
 
@@ -344,9 +344,6 @@ class EBMPolicy(PolicyABC):
         )
         xp = torch.tensor(xp)
         yp = torch.FloatTensor(actions_to_train)
-
-        def what_a_loss(y_pos, y_neg):
-            return
 
         for epoch in range(self.num_epochs):
 

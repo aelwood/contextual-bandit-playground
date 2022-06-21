@@ -334,16 +334,16 @@ if __name__ == "__main__":
         # for alpha in [20, 10]:
         for sw in [200, 300,500,1_000]:
             for alpha in [20, 10]:
-               algo_b_policies.append(
-                   EBMPolicy(
-                   name=f'EBM_NN_baseline_a_{alpha}_SW_{sw}',
-                   warm_up=pretrain_time,
-                   num_epochs=150,
-                   loss_function_type="log",
-                   alpha=alpha,
-                   feature_size = context_vector_size,
-                   sw=sw,
-               ))
+               # algo_b_policies.append(
+               #     EBMPolicy(
+               #     name=f'EBM_NN_baseline_a_{alpha}_SW_{sw}',
+               #     warm_up=pretrain_time,
+               #     num_epochs=150,
+               #     loss_function_type="log",
+               #     alpha=alpha,
+               #     feature_size = context_vector_size,
+               #     sw=sw,
+               # ))
                # EBMPolicy(
                #     name=f'EBM_NN_baseline',
                #     warm_up=pretrain_time,
