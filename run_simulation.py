@@ -332,8 +332,8 @@ if __name__ == "__main__":
 
         #for alpha in [20, 10, 5, 2]:
         # for alpha in [20, 10]:
-        for sw in [200, 300,500,1_000]:
-            for alpha in [20, 10]:
+        for sw in [500, 1_000, 1_500, 2_000, 4_000][::-1]:
+            for alpha in [10]:
                # algo_b_policies.append(
                #     EBMPolicy(
                #     name=f'EBM_NN_baseline_a_{alpha}_SW_{sw}',
@@ -351,20 +351,20 @@ if __name__ == "__main__":
                #     loss_function_type="mce", # TODO this doesn't work
                #    feature_size = context_vector_size
                # )
+               # algo_b_policies.append(EBMPolicy(
+               #     name=f'EBM_NN_circ_hp_q_a_{alpha}_SW_{sw}',
+               #     lr=0.005,
+               #     warm_up=pretrain_time,
+               #     num_epochs=150,
+               #     loss_function_type="log",
+               #     sample_size=256,
+               #     output_quadratic=True,
+               #     alpha=alpha,
+               #     feature_size = context_vector_size,
+               #     sw=sw,
+               # ))
                algo_b_policies.append(EBMPolicy(
-                   name=f'EBM_NN_circ_hp_q_a_{alpha}_SW_{sw}',
-                   lr=0.005,
-                   warm_up=pretrain_time,
-                   num_epochs=150,
-                   loss_function_type="log",
-                   sample_size=256,
-                   output_quadratic=True,
-                   alpha=alpha,
-                   feature_size = context_vector_size,
-                   sw=sw,
-               ))
-               algo_b_policies.append(EBMPolicy(
-                    name=f'EBM_NN_circ_hp_l_a_{alpha}_SW_{sw}',
+                    name=f'EBM_NN_circ_hp_l_a_{alpha}_{sw}sw',
                     lr=0.005,
                     warm_up=pretrain_time,
                     num_epochs=150,
