@@ -366,7 +366,7 @@ class EBMPolicy(PolicyABC):
                 negative_yp_batch = yp_batch[negative_reward_mask]
 
                 # TODO discuss: we're throwing away negative rewards here?
-                #  this is a big possible problem when there are few positive examples
+                #  thi s is a big possible problem when there are few positive examples
                 #  try upsampling?
                 #  Another thing to try is just collect loads of random samples and see if it works
                 #  ie try with a bigger warmup
