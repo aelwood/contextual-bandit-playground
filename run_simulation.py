@@ -32,15 +32,15 @@ for device in physical_devices:
 
 from scipy.stats import uniform
 
-try:
-    # Disable all GPUS
-    tf.config.set_visible_devices([], 'GPU')
-    visible_devices = tf.config.get_visible_devices()
-    for device in visible_devices:
-        assert device.device_type != 'GPU'
-except:
-    # Invalid device or cannot modify virtual devices once initialized.
-    pass
+# try:
+#     # Disable all GPUS
+#     tf.config.set_visible_devices([], 'GPU')
+#     visible_devices = tf.config.get_visible_devices()
+#     for device in visible_devices:
+#         assert device.device_type != 'GPU'
+# except:
+#     # Invalid device or cannot modify virtual devices once initialized.
+#     pass
 
 def simulate(
     environment, policy, evaluator, evaluation_frequency=100, steps_to_train=1
@@ -214,10 +214,10 @@ if __name__ == "__main__":
      ))
 
 
-    policies_to_run = baseline_policies + algo_b_policies + algo_a_policies
+    policies_to_run = algo_b_policies + algo_a_policies + baseline_policies
 
-    for x in range(10):
-        for policy_base in policies_to_run:
+    for policy_base in policies_to_run:
+        for x in range(10):
             for environment in possible_environments:
                 policy = policy_base.__copy__()
                 print(f"Running {policy.name} - {environment.name}")
