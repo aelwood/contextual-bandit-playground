@@ -200,18 +200,32 @@ if __name__ == "__main__":
 
 
     algo_b_policies = []
-    alpha = 10
-    algo_b_policies.append(EBMPolicy(
-        name=f'EBM_NN_circ_hp_l_a_{alpha}',
-        lr=0.005,
-        warm_up=pretrain_time,
-        num_epochs=150,
-        loss_function_type="log",
-        sample_size=256,
-        output_quadratic=False,
-        alpha=alpha,
-        feature_size=context_vector_size,
-     ))
+    # alpha = 10
+    # algo_b_policies.append(EBMPolicy(
+    #     name=f'EBM_NN_circ_hp_l_a_{alpha}',
+    #     lr=0.005,
+    #     warm_up=pretrain_time,
+    #     num_epochs=150,
+    #     loss_function_type="log",
+    #     sample_size=256,
+    #     output_quadratic=False,
+    #     alpha=alpha,
+    #     feature_size=context_vector_size,
+    #  ))
+
+    for alpha in [ 1, 10, 100]:
+         algo_b_policies.append(EBMPolicy(
+             name=f'EBM_NN_circ_hp_q_a_{alpha}',
+             lr=0.005,
+             warm_up=pretrain_time,
+             num_epochs=150,
+             loss_function_type="log",
+             sample_size=256,
+             output_quadratic=True,
+             alpha=alpha,
+             feature_size = context_vector_size
+         ))
+
 
 
     policies_to_run = algo_b_policies# + algo_a_policies + baseline_policies
