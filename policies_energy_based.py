@@ -399,12 +399,12 @@ class EBMPolicy(PolicyABC):
                 self.optimizer.step()
                 running_loss.append(loss.item())
 
-            print(
-                f"Epoch {epoch} avg training loss {np.mean(running_loss):0.4f}"
-            )
+            if epoch%30==0:
+                print(
+                    f"Epoch {epoch} avg training loss {np.mean(running_loss):0.4f}"
+                )
             self.scheduler.step()
         self.ebm_estimator.eval()
-        1--1
 
     def get_action(self, context):
         if self.warm_up >= len(self.past_contexts):

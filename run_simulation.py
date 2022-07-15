@@ -245,7 +245,7 @@ if __name__ == "__main__":
                     environment=environment,
                     experiment_name="CANO_" + environment.name,
                 )
-                steps_to_train = 1
+                steps_to_train = 100
                 if "NN" in policy.name:
                     steps_to_train = default_steps_before_retraining_nn
 
