@@ -6,6 +6,8 @@ import datetime
 from collections import defaultdict
 from environments import CirclesSyntheticEnvironment
 from policies_energy_based import EBMPolicy
+from LSUV import LSUVinit
+
 
 # ## setting the random seeds, for easy testing and developments
 # random_seed = 42
@@ -23,13 +25,13 @@ if __name__ == "__main__":
     lr = 0.005
     num_epochs = 150
     loss_function_type = "log"
-    sample_size = 256
+    sample_size = 128
     output_quadratic = False
     alpha = 10
     init_techq = 'xavier'
     use_dropout=True
 
-    for sample_size in [128, 256]:
+    for init_techq in ['LSUV_3',]:
         if output_quadratic:
             var = 'QUAD'
         else:
@@ -61,6 +63,22 @@ if __name__ == "__main__":
                 alpha=alpha,
                 feature_size=2,
              )
+
+            if init_techq == 'LSUV':
+                initialized_model = LSUVinit(policy.ebm_estimator, needed_std = 0.1, std_tol=0.1)
+                policy.ebm_estimator = initialized_model
+
+            if init_techq == 'LSUV_1':
+                initialized_model = LSUVinit(policy.ebm_estimator, needed_std = 0.01, std_tol=0.1)
+                policy.ebm_estimator = initialized_model
+
+            if init_techq == 'LSUV_2':
+                initialized_model = LSUVinit(policy.ebm_estimator, needed_std = 0.005, std_tol=0.1)
+                policy.ebm_estimator = initialized_model
+
+            if init_techq == 'LSUV_3':
+                initialized_model = LSUVinit(policy.ebm_estimator, needed_std = 0.05, std_tol=0.1)
+                policy.ebm_estimator = initialized_model
 
             c1 = None
             c2 = None
