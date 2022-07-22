@@ -19,24 +19,24 @@ if __name__ == "__main__":
     saving_dir = Path("/Users/mleonardi/Projects/research/contextual-bandit-playground/data/")
 
     pretrain_time = 1_000
-    number_of_observations = 2_500
+    number_of_observations = 1_750
     train_every = 100
 
     lr = 0.005
     num_epochs = 150
     loss_function_type = "log"
-    sample_size = 128
+    sample_size = 256
     output_quadratic = False
     alpha = 10
     init_techq = 'xavier'
     use_dropout=True
 
-    for init_techq in ['LSUV_3',]:
+    for init_techq in ['',]:
         if output_quadratic:
             var = 'QUAD'
         else:
             var = 'LIN'
-        exp_cluster = f"A_TE-{train_every:,}_initializer-{init_techq}_LR-{str(lr).split('.')[-1]}_EPOCH-{num_epochs}_LFT-{loss_function_type}_SS-{sample_size}_ALPHA-{str(alpha).split('.')[-1]}_{var}"
+        exp_cluster = f"FINALONESUPER-{train_every:,}_initializer-{init_techq}_LR-{str(lr).split('.')[-1]}_EPOCH-{num_epochs}_LFT-{loss_function_type}_SS-{sample_size}_ALPHA-{str(alpha).split('.')[-1]}_{var}"
 
         if not use_dropout:
             exp_cluster += '_no-dropout'
@@ -62,23 +62,8 @@ if __name__ == "__main__":
                 output_quadratic=output_quadratic,
                 alpha=alpha,
                 feature_size=2,
+                init_techq=init_techq,
              )
-
-            if init_techq == 'LSUV':
-                initialized_model = LSUVinit(policy.ebm_estimator, needed_std = 0.1, std_tol=0.1)
-                policy.ebm_estimator = initialized_model
-
-            if init_techq == 'LSUV_1':
-                initialized_model = LSUVinit(policy.ebm_estimator, needed_std = 0.01, std_tol=0.1)
-                policy.ebm_estimator = initialized_model
-
-            if init_techq == 'LSUV_2':
-                initialized_model = LSUVinit(policy.ebm_estimator, needed_std = 0.005, std_tol=0.1)
-                policy.ebm_estimator = initialized_model
-
-            if init_techq == 'LSUV_3':
-                initialized_model = LSUVinit(policy.ebm_estimator, needed_std = 0.05, std_tol=0.1)
-                policy.ebm_estimator = initialized_model
 
             c1 = None
             c2 = None
@@ -109,10 +94,9 @@ if __name__ == "__main__":
                     a2 = optimal_a
 
                 if i % train_every == 0:
+                    print(f'Observed {i} items over {number_of_observations}.')
                     policy.train()
 
-                if i % 500==0:
-                    print(f'Observed {i} items over {number_of_observations}.')
 
             cumulative_stochastic_reward_policy = np.cumsum(stats_dict['s_r'])
             cumulative_stochastic_reward_oracle = np.cumsum(stats_dict['stochastic_r'])

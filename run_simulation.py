@@ -204,7 +204,7 @@ if __name__ == "__main__":
     alpha = 10
 
     algo_b_policies.append(EBMPolicy(
-         name=f'X_EBM_NN_circ_hp_q_a_{alpha}',
+         name=f'NEW_EBM_NN_circ_hp_q_a_{alpha}',
          lr=0.005,
          warm_up=pretrain_time,
          num_epochs=150,
@@ -212,7 +212,6 @@ if __name__ == "__main__":
          sample_size=128,
          output_quadratic=False,
          alpha=alpha,
-         init_techq = 'xavier',
          feature_size = context_vector_size
      ))
 
@@ -222,6 +221,7 @@ if __name__ == "__main__":
 
     for policy_base in policies_to_run:
         for x in range(10):
+            print(f"RUNNING ITERATION: {x}")
             for environment in possible_environments:
                 policy = policy_base.__copy__()
                 print(f"Running {policy.name} - {environment.name}")
