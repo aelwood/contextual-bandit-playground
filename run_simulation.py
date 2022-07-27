@@ -217,7 +217,7 @@ if __name__ == "__main__":
 
 
 
-    policies_to_run = algo_b_policies + algo_a_policies + baseline_policies
+    policies_to_run = baseline_policies + algo_b_policies + algo_a_policies
     # policies_to_run = algo_a_policies
 
     for policy_base in policies_to_run:
