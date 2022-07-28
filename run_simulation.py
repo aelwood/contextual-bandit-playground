@@ -221,7 +221,7 @@ if __name__ == "__main__":
     # policies_to_run = algo_a_policies
 
     for policy_base in policies_to_run:
-        for x in range(2):
+        for x in range(3):
             print(f"RUNNING ITERATION: {x}")
             for environment in possible_environments:
                 policy = policy_base.__copy__()
